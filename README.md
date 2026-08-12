@@ -11,26 +11,29 @@ ledger. See [docs/PRODUCT_REQUIREMENTS.md](docs/PRODUCT_REQUIREMENTS.md)
 for the full product vision and [docs/](docs/) for the complete
 specification set.
 
-**Status: Phase 1 + 2 + 3 + 4 + 5 complete.** Identity, multi-tenancy,
-RBAC, audit logging, customers/accounts, billing, the persistent
-control-number engine, the payment domain (full lifecycle,
-UNKNOWN-on-timeout handling, idempotent initiation and callbacks), a
-mock/sandbox provider adapter, signed outbound webhook delivery, an
-immutable financial ledger, the revenue engine (the TZS 50
-control-number/payment fees are genuinely charged, exactly once each —
-the build spec's own worked example, one control number + five payments
-= TZS 300, is reproduced exactly), reconciliation, settlement batching
-(with database-enforced double-settlement prevention), templated
-multi-channel notifications (real email, MOCK/SANDBOX SMS), automatically
-generated receipts, and a focused reporting layer are all implemented and
-tested against real PostgreSQL — 131 automated tests, plus extensive
-manual end-to-end verification including a real Celery worker delivering
-a real signed webhook and, most recently, six real notification
-deliveries from one live payment flow. Only the external API doesn't
-exist yet — it arrives in Phase 6 (see
-[docs/PRODUCT_REQUIREMENTS.md](docs/PRODUCT_REQUIREMENTS.md#development-phases)).
-Nothing in this codebase claims to be a licensed payment institution; see
+**Status: all six build phases complete.** Identity, multi-tenancy, RBAC,
+audit logging, customers/accounts, billing, the persistent control-number
+engine, the payment domain (full lifecycle, UNKNOWN-on-timeout handling,
+idempotent initiation and callbacks), a mock/sandbox provider adapter,
+signed outbound webhook delivery, an immutable financial ledger, the
+revenue engine (the TZS 50 control-number/payment fees are genuinely
+charged, exactly once each — the build spec's own worked example, one
+control number + five payments = TZS 300, is reproduced exactly),
+reconciliation, settlement batching (with database-enforced
+double-settlement prevention), templated multi-channel notifications
+(real email, MOCK/SANDBOX SMS), automatically generated receipts, a
+focused reporting layer, and a full external REST API with credential
+authentication, rate limiting, and two layers of idempotency are all
+implemented and tested against real PostgreSQL — 149 automated tests,
+plus extensive manual end-to-end verification, including a real
+`curl`-driven customer→account→bill→control-number→payment sequence run
+entirely through the external API against the live server. Nothing in
+this codebase claims to be a licensed payment institution; see
 [docs/compliance/REGULATORY_ASSUMPTIONS.md](docs/compliance/REGULATORY_ASSUMPTIONS.md).
+What's genuinely not built — a second (real) payment provider, production
+hardening, and more — is documented honestly per-domain rather than
+implied to exist; see each doc's "what's not built" section and
+[docs/PRODUCT_REQUIREMENTS.md](docs/PRODUCT_REQUIREMENTS.md).
 
 ## Quick start (local, no Docker)
 
@@ -50,7 +53,9 @@ python manage.py runserver
 
 Visit http://127.0.0.1:8000/ — anonymous visitors land on sign-in;
 `/register/` starts the institution-onboarding journey; `/admin/` is the
-Django admin for platform staff.
+Django admin for platform staff; `/api/docs/` is the interactive API
+documentation (Swagger UI) once you've created an API credential from
+the tenant portal's Developers menu.
 
 ## Quick start (Docker)
 
@@ -87,8 +92,15 @@ docs/            Full specification and architecture documentation
 docker-compose.yml, Dockerfile, requirements/
 ```
 
+## Domains implemented
+
+`core` · `users` · `accounts` · `tenants` · `organizations` · `audit` ·
+`customers` · `billing` · `control_numbers` · `providers` · `payments` ·
+`webhooks` · `ledger` · `revenue` · `reconciliation` · `settlement` ·
+`notifications` · `receipts` · `reports` · `api`
+
 ## Documentation
 
 Start with [docs/README.md](docs/README.md) for an index of every
 specification document, or [ARCHITECTURE_DECISIONS.md](ARCHITECTURE_DECISIONS.md)
-for the reasoning behind foundational choices.
+for the reasoning behind foundational choices (24 ADRs as of Phase 6).

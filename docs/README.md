@@ -33,7 +33,7 @@ and reporting. It is explicitly **not** a school-specific system — see
 | [MULTI_TENANCY.md](MULTI_TENANCY.md) | Tenant isolation guarantees |
 | [RBAC.md](RBAC.md) | Platform and tenant roles |
 | [SECURITY_ARCHITECTURE.md](SECURITY_ARCHITECTURE.md) | Security controls, honest gaps |
-| [API_ARCHITECTURE.md](API_ARCHITECTURE.md) | External REST API design (Phase 6) |
+| [API_ARCHITECTURE.md](API_ARCHITECTURE.md) | External REST API: endpoints, auth, idempotency, rate limiting |
 | [DATABASE_ARCHITECTURE.md](DATABASE_ARCHITECTURE.md) | PostgreSQL conventions |
 | [DEPLOYMENT.md](DEPLOYMENT.md) | Environments, Docker, production topology |
 | [DISASTER_RECOVERY.md](DISASTER_RECOVERY.md) | Backup/recovery posture |
@@ -41,7 +41,7 @@ and reporting. It is explicitly **not** a school-specific system — see
 | [COMPLIANCE_ASSUMPTIONS.md](COMPLIANCE_ASSUMPTIONS.md) | Summary — see compliance/ for detail |
 | [compliance/REGULATORY_ASSUMPTIONS.md](compliance/REGULATORY_ASSUMPTIONS.md) | Full regulatory-boundary documentation |
 
-## What exists today (Phase 1 + 2 + 3 + 4 + 5)
+## What exists today — all six phases complete
 
 **Phase 1:** identity (`apps.users`), authentication (`apps.accounts`),
 multi-tenancy and RBAC (`apps.tenants`), organizational sub-structure
@@ -79,18 +79,36 @@ focused reporting layer (`apps.reports`) covering bills, payments,
 collections, outstanding balances, and audit events, each with real
 filters and CSV export.
 
-131 automated tests pass against real PostgreSQL. Beyond the test suite,
-manually verified end to end against real PostgreSQL, a real Celery
-worker, and (Phase 5) real notification delivery: the control-number
-reuse guarantee, the full payment→webhook pipeline with
-independently-verified HMAC signatures, the exact TZS 300 worked
-example, settlement generation/completion/double-settle-prevention/
-reconciliation together in one live run, and — most recently — a full
-bill→control-number→payment→receipt flow producing six correctly
-templated notifications (email + SMS for bill created, control number
-generated, and bill fully paid) that all reached `status=sent` once a
-Celery worker was running to consume them.
+**Phase 6:** the external API (`apps.api`) — `/api/v1/` endpoints for
+institutions, customers, accounts, bills, control numbers, payments,
+reconciliation, settlements, webhooks, and notifications, every write
+routed through the exact same service functions the portal uses, never
+a bypassed `serializer.save()`; API credentials (`ApiCredential`, hashed
+secrets, shown once, rotatable, revocable) as a distinct concept from
+portal `User` accounts; per-credential rate limiting; two layers of
+idempotency (`external_reference` for resource creation,
+`Idempotency-Key` header for payment initiation); and a live OpenAPI
+schema + interactive Swagger UI at `/api/docs/`.
 
-The external API does not exist yet (Phase 6). Every document in this
-folder describes the **target** design for its domain; where that domain
-isn't built yet, the document says so rather than implying it's live.
+149 automated tests pass against real PostgreSQL. Beyond the test suite,
+manually verified end to end against real infrastructure across every
+phase: the control-number reuse guarantee over real HTTP with real
+login/CSRF, the full payment→webhook pipeline with independently-verified
+HMAC signatures over a real Celery worker, the exact TZS 300 worked
+example against real PostgreSQL, settlement generation/completion/
+double-settle-prevention/reconciliation together in one live run, a full
+bill→control-number→payment→receipt flow producing six correctly
+templated notifications that all reached `status=sent`, and — most
+recently — a real `ApiCredential` driving a complete
+customer→account→bill→control-number→payment sequence through `curl`
+against the live server, ending with the bill `paid`, both platform fees
+posted, a receipt generated, and unauthenticated requests to the same
+endpoints correctly rejected with `401`.
+
+Every phase in the original build spec (sections 1–51) is now
+implemented and verified. Every document in this folder reflects what's
+actually built, not a target design still to come — where a specific
+capability genuinely isn't built (see each document's own "what's not
+built" section, e.g. a second real payment provider, or a bulk
+settlement-statement import for reconciliation), that's stated
+explicitly rather than implied to exist.

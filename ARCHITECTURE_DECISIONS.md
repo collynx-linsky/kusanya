@@ -629,3 +629,68 @@ scaling (e.g., tenants wanting to define their own custom reports), that
 would be a deliberate, justified new system to design then — not
 something to have spent Phase 5 building speculatively against a need
 that doesn't exist yet.
+
+---
+
+## ADR-023: `ApiCredential` is a distinct model, not a Django `User` with an API-key flag
+
+**Decision:** External API authentication (`apps/api/models.py::ApiCredential`)
+is its own model — `key_id` + hashed `secret`, tenant-scoped — with no
+relationship to `apps.users.User` beyond an optional `created_by` FK
+recording which portal user generated it.
+
+**Reason:** A `User` in this codebase carries a whole identity stack that
+makes no sense for a server-to-server integration: a password (a
+credential an ERP integration doesn't have or need), session-based login
+(an integration never "logs in" interactively), `TenantMembership`/RBAC
+roles designed around a person acting through the portal UI, and audit
+semantics ("who did what" — for an API credential, "what integration"
+is the more honest question than "which person," since the same
+credential is typically shared by one integration's server process, not
+tied to an individual). Modeling the credential as its own thing keeps
+"a person with portal access" and "a system with API access" as the two
+genuinely different concepts they are, rather than overloading `User`
+with an `is_api_key` boolean and a pile of fields that are meaningless
+for one case or the other.
+
+**Consequences:** `ApiKeyAuthentication` returns `(AnonymousUser(),
+credential)` from DRF's `authenticate()` — `request.user` is never a real
+user for an API-authenticated request, only `request.auth` (the
+credential) and `request.tenant` (set directly from it) carry meaning.
+Anywhere in application code that assumes `request.user` is always a
+real, DB-backed `User` (there is no such code today, but it's a trap for
+future code) needs to instead branch on whether the request came through
+session auth or API-key auth, or use `getattr(request, "api_credential",
+None)` as the API-context signal.
+
+---
+
+## ADR-024: Credential rotation is immediate replacement, not a grace-period overlap
+
+**Decision:** `apps.api.credential_services.rotate_credential()` replaces
+a credential's secret in place — the old secret stops authenticating the
+instant the function returns. There is no window where both the old and
+new secret work simultaneously.
+
+**Reason:** A grace-period rotation (common in mature API platforms —
+"the old key keeps working for 24 hours while you migrate") requires
+storing and validating against *two* secrets per credential for some
+period, plus a mechanism to expire the old one on a schedule — real
+complexity or Celery beat scheduling that Phase 6 has no existing
+precedent for (the closest analog, `apps.control_numbers.services.expire_overdue`,
+also isn't wired to a schedule yet — see docs/CONTROL_NUMBER_SPEC.md).
+Building that scaffolding for one feature, speculatively, rather than
+when a second scheduled-expiry need makes the investment clearly worth
+it, would be exactly the premature complexity principle 9 warns against.
+
+**Consequences:** A tenant rotating a credential currently in active use
+by a live integration causes that integration to start failing
+authentication immediately upon rotation, until its configuration is
+updated with the new secret. The portal's rotation confirmation page
+says this explicitly. The safe rotation procedure with today's
+implementation is: create a **second** `ApiCredential` (a tenant can have
+as many active credentials as they want — nothing in the model limits
+this), migrate the integration to it, confirm it's working, *then* revoke
+the first one — never rotate a credential that's currently serving live
+traffic. Worth revisiting if/when a real integration partner specifically
+needs zero-downtime rotation.

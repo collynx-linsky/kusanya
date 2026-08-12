@@ -28,6 +28,8 @@ urlpatterns = [
     path("notifications/", include("apps.notifications.urls")),
     path("receipts/", include("apps.receipts.urls")),
     path("reports/", include("apps.reports.urls")),
+    path("api-credentials/", include("apps.api.portal_urls")),
+    path("api/", include("apps.api.urls")),
 ]
 
 if settings.DEBUG:

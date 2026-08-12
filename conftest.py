@@ -71,6 +71,26 @@ def mock_provider(db):
 
 
 @pytest.fixture
+def make_api_credential(db):
+    from apps.api.credential_services import create_credential
+
+    def _make(tenant, name="Test Integration"):
+        credential, raw_secret = create_credential(tenant=tenant, name=name)
+        return credential, raw_secret
+
+    return _make
+
+
+@pytest.fixture
+def api_auth_header(make_api_credential):
+    def _make(tenant):
+        credential, raw_secret = make_api_credential(tenant)
+        return {"HTTP_AUTHORIZATION": f"Bearer {credential.key_id}.{raw_secret}"}, credential
+
+    return _make
+
+
+@pytest.fixture
 def make_bill_with_control_number(db):
     """End-to-end helper: tenant -> customer -> account -> bill -> control
     number, mirroring apps.billing.views.bill_create's real flow, so

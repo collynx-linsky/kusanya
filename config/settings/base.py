@@ -79,6 +79,8 @@ LOCAL_APPS = [
     "apps.notifications",
     "apps.receipts",
     "apps.reports",
+    # Phase 6 — external API, API credentials:
+    "apps.api",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -230,13 +232,20 @@ REST_FRAMEWORK = {
     "DEFAULT_RENDERER_CLASSES": [
         "rest_framework.renderers.JSONRenderer",
     ],
+    # Every external API view (apps.api) sets its own throttle_classes
+    # explicitly to ApiCredentialRateThrottle — this rate is what that
+    # throttle actually enforces. Configurable via env so a production
+    # deploy can tune it without a code change.
+    "DEFAULT_THROTTLE_RATES": {
+        "api_credential": env("API_RATE_LIMIT", default="120/min"),
+    },
 }
 
 SPECTACULAR_SETTINGS = {
     "TITLE": "KUSANYA API",
     "DESCRIPTION": "Digital Collections & Payment Infrastructure — external integration API.",
-    "VERSION": "0.1.0-foundation",
-    "SERVE_INCLUDE_SCHEMA": False,
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": True,
 }
 
 # ---------------------------------------------------------------------------

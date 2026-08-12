@@ -58,32 +58,44 @@ not just conventionally followed:
    the resolved role only to decide what to *show*, never as the actual
    access boundary (build spec section 8).
 
+5. **API-key-based tenant resolution (Phase 6) follows the identical
+   rule via a third mechanism.** `apps.api.authentication.ApiKeyAuthentication`
+   sets `request.tenant` directly from the authenticated `ApiCredential`
+   — never from a tenant ID anywhere in the request body or query
+   string, for any `/api/v1/` endpoint. Verified:
+   `TestTenantIsolationViaApi` — a credential from tenant B gets an
+   empty list from `GET /customers/` when tenant A has customers, and a
+   `404` (not a `403`, which would leak that the row exists) when
+   guessing another tenant's bill ID. Three independent tenant-resolution
+   mechanisms now exist (session, provider-callback-via-payment-lookup,
+   API credential) and all three obey the same rule — see
+   [../ARCHITECTURE_DECISIONS.md](../ARCHITECTURE_DECISIONS.md) ADR-002.
+
 ## What's not built yet
 
-API-key-based tenant resolution for external ERP/POS integrations (Phase
-6) — it will follow the identical rule (derive tenant from the
-authenticated credential, never trust a client-supplied tenant ID), just
-via an API key/secret instead of a session. Row-level tenant filtering at
-the queryset layer (e.g. a manager that automatically scopes
-`Model.objects` to `request.tenant`) is still not implemented — every
-portal view across Phases 2–4 (`apps.customers.views`,
-`apps.billing.views`, `apps.control_numbers.views`, `apps.payments.views`,
+Row-level tenant filtering at the queryset layer (e.g. a manager that
+automatically scopes `Model.objects` to `request.tenant`) is still not
+implemented — every portal *and API* view across Phases 2–6
+(`apps.customers.views`, `apps.billing.views`,
+`apps.control_numbers.views`, `apps.payments.views`,
 `apps.webhooks.views`, `apps.ledger.views`, `apps.revenue.views`,
-`apps.reconciliation.views`, `apps.settlement.views`) filters explicitly
-with `.filter(tenant=request.tenant)`/
+`apps.reconciliation.views`, `apps.settlement.views`, `apps.api.views`)
+filters explicitly with `.filter(tenant=request.tenant)`/
 `get_object_or_404(..., tenant=request.tenant)` rather than an automatic
 manager. This is directly what the tenant-isolation tests across those
-apps exercise (e.g. `TestBillPortalTenantIsolation`: a guessed URL for
-another tenant's bill 404s, another tenant's bill never appears in your
-bill list). An automatic tenant-scoping manager would reduce the chance
-of a future view forgetting this filter — worth introducing before Phase
-5/6 adds more views, rather than each app continuing to repeat the same
-explicit filter by convention. Settlement's platform-only views
-(`generate_batch`, `mark_completed`) are the one deliberate exception —
-they operate across tenants by design (a platform admin chooses which
-tenant to settle), gated by `require_platform_role` instead of
-tenant-membership, which is the correct boundary for an action a tenant
-user should never be able to trigger for themselves.
+apps exercise (e.g. `TestBillPortalTenantIsolation`,
+`TestTenantIsolationViaApi`: a guessed URL for another tenant's bill
+404s, another tenant's bill never appears in your bill list). An
+automatic tenant-scoping manager would reduce the chance of a future
+view forgetting this filter — now that all six phases are built and the
+explicit-filter pattern has held up correctly across every one of them,
+this is worth introducing before any Phase 7 hardening work, as a
+refactor with the existing tests as its safety net, rather than each app
+continuing to repeat the same explicit filter by convention. Settlement's
+platform-only views (`generate_batch`, `mark_completed`) remain the one
+deliberate exception — they operate across tenants by design (a platform
+admin chooses which tenant to settle), gated by `require_platform_role`
+instead of tenant-membership.
 
 ## Tenant lifecycle
 

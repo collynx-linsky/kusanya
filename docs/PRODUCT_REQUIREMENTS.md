@@ -57,7 +57,7 @@ ADR-005 for why later-phase apps aren't pre-scaffolded.
 | 3 | **Done.** Payment domain, provider abstraction, mock provider, payment lifecycle, idempotency, webhooks |
 | 4 | **Done.** Ledger, Revenue, Reconciliation, Settlement |
 | 5 | **Done.** Notifications, Receipts, Reports |
-| 6 | External API, API keys, webhooks, OpenAPI docs |
+| 6 | **Done.** External API, API keys, webhooks, OpenAPI docs |
 | 7 | Security hardening, full test coverage, monitoring, production prep |
 
 ## Core user journeys (target)
@@ -106,19 +106,26 @@ ADR-005 for why later-phase apps aren't pre-scaffolded.
   on demand (a portal button / platform action), not yet on an automatic
   Celery beat schedule.
 - **G — ERP integration:** external system authenticates, creates a bill,
-  gets a control number, receives a webhook. **Partially implemented**:
-  "receives a webhook" is real (Phase 3 — any tenant can register an
-  endpoint today and receive signed `bill.created`/`payment.successful`/
-  etc. deliveries). "External system authenticates, creates a bill, gets
-  a control number" via an API is still Phase 6 — only the server-rendered
-  portal can do those things today.
+  gets a control number, receives a webhook. **Fully implemented** —
+  verified live: a real API credential, created through the tenant
+  portal, drove `curl` requests through `POST /api/v1/customers/` →
+  `/accounts/` → `/bills/` → `/bills/{id}/control-number/` →
+  `/payments/`, ending with the bill's status flipping to `paid` and a
+  receipt generated, entirely over HTTP with no portal session involved.
+  "Receives a webhook" was already real since Phase 3. See
+  [API_ARCHITECTURE.md](API_ARCHITECTURE.md).
 
-## Non-goals for Phase 1 (explicitly out of scope, then)
+## Non-goals for Phase 1 (explicitly out of scope, then — none remain as of Phase 6)
 
 Billing, control numbers, payments, provider adapters, ledger, revenue,
 reconciliation, settlement, notifications, receipts, reports, and the
 external REST API. Any UI element that might imply these exist was
 labeled "Not yet implemented" rather than showing placeholder/fake data
-(build spec section 44). As of Phase 5: everything above except the
-external REST API is built (Phases 2–5) — only the API, and the ERP
-integrations it would enable, remain out of scope, until Phase 6.
+(build spec section 44). As of Phase 6, every domain listed in this
+document's vision (section 1 of the build spec) is implemented and
+tested. What remains out of scope is Phase 7's hardening work —
+production-grade rate limiting/monitoring, full security review, and a
+real (non-mock) payment provider once one is licensed and contracted —
+see [SECURITY_ARCHITECTURE.md](SECURITY_ARCHITECTURE.md) and
+[compliance/REGULATORY_ASSUMPTIONS.md](compliance/REGULATORY_ASSUMPTIONS.md)
+for what that would actually require.

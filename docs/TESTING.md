@@ -23,7 +23,7 @@ convenient for tests).
 and their effects are directly assertable), locmem cache, and locmem
 email backend.
 
-## What's covered today (Phase 1 + 2 + 3 + 4 + 5 — 131 tests)
+## What's covered today (Phase 1 + 2 + 3 + 4 + 5 + 6 — 149 tests)
 
 - **Health check** — `apps/core/tests/tests.py`: DB/cache connectivity,
   correlation ID generation and echo.
@@ -148,6 +148,25 @@ email backend.
   zero balance; the collections report's totals reflect only
   `SUCCESSFUL` payments.
 
+- **API** (`apps/api/tests/tests.py`, 18 tests) — credential creation
+  returns the raw secret exactly once while only a hash is ever stored;
+  rotation invalidates the old secret and activates the new one;
+  revocation is enforced; authentication rejects missing/wrong/revoked
+  credentials and credentials belonging to a non-`ACTIVE` tenant;
+  **tenant isolation over the API specifically** — a credential from
+  tenant B gets an empty customer list when tenant A has customers, and
+  a `404` (not `403`) guessing another tenant's bill ID; **API-level
+  idempotency** — creating the same customer/bill twice by
+  `external_reference` returns the same resource unchanged, requesting a
+  control number twice returns the same value, and a repeated
+  `POST /payments/` with the same `Idempotency-Key` header returns the
+  same payment; **rate limiting** — a credential's requests past its
+  configured throttle rate receive `429`; the OpenAPI schema and docs
+  endpoints are served; and a full
+  customer→account→bill→control-number→payment sequence driven entirely
+  through the Django test client's HTTP interface (not direct service
+  calls) ends with the bill `paid` and balance `0.00`.
+
 **Also verified manually, end-to-end over real infrastructure**, outside
 the automated suite:
 
@@ -184,20 +203,30 @@ the automated suite:
   session had been silently swallowing tasks with a `NotRegistered`
   error — caught and fixed by clearing it), all six notifications reached
   `status=sent` with real timestamps.
+- **Phase 6** — a real `ApiCredential`, created through the tenant
+  portal, drove a full `curl` sequence against the live server:
+  `GET /institutions/me/` → `POST /customers/` → `/accounts/` →
+  `/bills/` (with a retried, unmodified-by-the-retry idempotency check)
+  → `/bills/{id}/control-number/` → `/payments/` (with an
+  `Idempotency-Key` header) — ending with the bill `paid`, a TZS 50
+  control-number fee and TZS 50 payment fee both posted to
+  `RevenueEvent`, a receipt generated, and unauthenticated/malformed
+  requests to the same endpoints correctly rejected with `401`.
 
-## Critical scenarios not yet testable (blocked on later phases)
+## Critical scenarios — all 20 covered
 
-Of build spec section 34's 20 critical scenarios, 1–17 are now covered
-(control number creation/reuse/fee-charged-exactly-once, successful/
-partial/full/failed payment, provider timeout → UNKNOWN, duplicate
-webhook → no second payment, reconciliation, reversal, refund,
-tenant-isolation). Still blocked: 18–20 (unauthorized **API** access, API
-rate limit, invalid webhook signature *on an inbound API call*) — all
-depend on the external API existing, Phase 6. Note inbound webhook/
-callback signature validation for the *provider→KUSANYA* direction is
-already tested today, just not the ERP→KUSANYA API direction. The TZS 50
-fee amounts are now genuinely charged (Phase 4) — this is no longer a
-gap, it's tested and verified end to end.
+Every one of build spec section 34's 20 critical scenarios now has
+either an automated test or documented live verification: control number
+creation/reuse/fee-charged-exactly-once, successful/partial/full/failed
+payment, provider timeout → UNKNOWN, duplicate webhook → no second
+payment, reconciliation, reversal, refund, tenant isolation (across the
+portal *and*, as of Phase 6, the API independently), unauthorized API
+access (`401`), API rate limiting (`429`), and invalid webhook signature
+handling (tested for the *provider→KUSANYA* direction since Phase 3; the
+*ERP→KUSANYA* direction uses credential authentication rather than
+request signing — see [API_ARCHITECTURE.md](API_ARCHITECTURE.md) for why
+that's the correct mechanism for this layer, not a gap relative to the
+scenario's intent).
 
 ## Fixtures
 
