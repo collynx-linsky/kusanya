@@ -567,3 +567,65 @@ per-tenant settings, revisit whether they belong grouped in a dedicated
 config model rather than continuing to add fields to `Tenant` — a `Tenant`
 model that accumulates too many unrelated concerns becomes its own
 maintenance problem. Not yet at that threshold.
+
+---
+
+## ADR-021: Default notification templates are code constants (`apps.notifications.defaults`), not database rows
+
+**Decision:** Every (event type, channel) pair's default copy lives in a
+Python dict in `apps/notifications/defaults.py`. `NotificationTemplate`
+(a real, tenant-scoped, database-backed model) exists only for a
+tenant's *override* of a specific pair — most tenants have zero rows in
+that table and get entirely correct behavior from the code defaults.
+
+**Reason:** The alternative — seeding every tenant with a full set of
+default template rows at creation time (mirroring, e.g., the
+`providers.PaymentProvider` catalog seed from Phase 3) — would mean (a) a
+schema/data migration every time a default needs wording fixed, since
+every tenant's copy of that row would need updating, not just one source
+of truth, and (b) an empty-seeming `NotificationTemplate` table for the
+common case of a tenant that never customizes anything looking like
+missing data rather than "using the default, as intended." Keeping
+defaults in code and overrides in the database makes "does this tenant
+have a customization" a direct, honest query
+(`NotificationTemplate.objects.filter(tenant=..., event_type=...,
+channel=...)`) instead of "does this row still equal the default text."
+
+**Consequences:** Changing default copy is a code change (reviewed,
+tested, deployed) rather than a data migration — appropriate, since
+wording changes are a product decision with the same review bar as any
+other code change. A tenant wanting a permanent customization creates
+exactly one `NotificationTemplate` row for exactly the (event, channel)
+pair they want to change; every pair they don't customize continues to
+track the code default automatically, including future default wording
+improvements — which would NOT be true if every tenant had been seeded a
+copy at creation time.
+
+---
+
+## ADR-022: Reports are focused per-domain views, not a generic report-builder engine
+
+**Decision:** `apps/reports/` contains one view function per report
+(bills, payments, collections, outstanding balances, audit events), each
+querying its own specific model(s) with its own specific filters. There
+is no `Report`/`ReportDefinition` model, no generic "pick a model, pick
+filters, pick columns" builder.
+
+**Reason:** Build spec section 27 names specific reports with specific,
+mostly-different filter sets (a "notifications" report doesn't need a
+"revenue source" filter; an "audit events" report doesn't need a
+"channel" filter). A generic report-builder engine capable of expressing
+all of these would be a meaningfully larger, more complex system — a
+small query-and-filter DSL, effectively — for a set of reporting needs
+that four phases of concrete domain models have already fully
+enumerated. Building the generic version speculatively, before a second
+concrete need proves the concrete version doesn't scale, would be exactly
+the kind of premature abstraction principle 9 warns against.
+
+**Consequences:** Every new report is a new, small, reviewable view
+function — not a configuration entry in a generic engine. If report
+requirements grow enough that "one Python function per report" stops
+scaling (e.g., tenants wanting to define their own custom reports), that
+would be a deliberate, justified new system to design then — not
+something to have spent Phase 5 building speculatively against a need
+that doesn't exist yet.

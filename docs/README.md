@@ -27,8 +27,9 @@ and reporting. It is explicitly **not** a school-specific system — see
 | [LEDGER_SPEC.md](LEDGER_SPEC.md) | Immutable financial ledger |
 | [RECONCILIATION_SPEC.md](RECONCILIATION_SPEC.md) | Cross-system matching |
 | [SETTLEMENT_SPEC.md](SETTLEMENT_SPEC.md) | Settlement batches |
-| [NOTIFICATION_SPEC.md](NOTIFICATION_SPEC.md) | Templated multi-channel notifications |
+| [NOTIFICATION_SPEC.md](NOTIFICATION_SPEC.md) | Templated multi-channel notifications, receipts |
 | [WEBHOOK_ARCHITECTURE.md](WEBHOOK_ARCHITECTURE.md) | Outbound event delivery: signing, retries, dead-letter |
+| [REPORTING.md](REPORTING.md) | Report views, filters, CSV export |
 | [MULTI_TENANCY.md](MULTI_TENANCY.md) | Tenant isolation guarantees |
 | [RBAC.md](RBAC.md) | Platform and tenant roles |
 | [SECURITY_ARCHITECTURE.md](SECURITY_ARCHITECTURE.md) | Security controls, honest gaps |
@@ -40,7 +41,7 @@ and reporting. It is explicitly **not** a school-specific system — see
 | [COMPLIANCE_ASSUMPTIONS.md](COMPLIANCE_ASSUMPTIONS.md) | Summary — see compliance/ for detail |
 | [compliance/REGULATORY_ASSUMPTIONS.md](compliance/REGULATORY_ASSUMPTIONS.md) | Full regulatory-boundary documentation |
 
-## What exists today (Phase 1 + 2 + 3 + 4)
+## What exists today (Phase 1 + 2 + 3 + 4 + 5)
 
 **Phase 1:** identity (`apps.users`), authentication (`apps.accounts`),
 multi-tenancy and RBAC (`apps.tenants`), organizational sub-structure
@@ -69,14 +70,27 @@ drift without ever silently correcting a settled payment; and settlement
 batching (`apps.settlement`), with database-enforced double-settlement
 prevention.
 
-109 automated tests pass against real PostgreSQL. Beyond the test suite,
-manually verified end to end against real PostgreSQL and (for Phase 3)
-a real Celery worker: the control-number reuse guarantee, the full
-payment→webhook pipeline with independently-verified HMAC signatures,
-the exact TZS 300 worked example, and settlement generation/completion/
-double-settle-prevention/reconciliation together in one live run.
+**Phase 5:** the notification engine (`apps.notifications`) — templated,
+tenant-overridable, asynchronously delivered over email (real) and SMS
+(MOCK/SANDBOX, clearly labeled — no real gateway integrated); receipts
+(`apps.receipts`), generated automatically and exactly once per
+successful payment, snapshotted so they read the same in a year; and a
+focused reporting layer (`apps.reports`) covering bills, payments,
+collections, outstanding balances, and audit events, each with real
+filters and CSV export.
 
-Notifications, receipts, reports, and the external API do not exist yet
-(Phase 5–6). Every document in this folder describes the **target**
-design for its domain; where that domain isn't built yet, the document
-says so rather than implying it's live.
+131 automated tests pass against real PostgreSQL. Beyond the test suite,
+manually verified end to end against real PostgreSQL, a real Celery
+worker, and (Phase 5) real notification delivery: the control-number
+reuse guarantee, the full payment→webhook pipeline with
+independently-verified HMAC signatures, the exact TZS 300 worked
+example, settlement generation/completion/double-settle-prevention/
+reconciliation together in one live run, and — most recently — a full
+bill→control-number→payment→receipt flow producing six correctly
+templated notifications (email + SMS for bill created, control number
+generated, and bill fully paid) that all reached `status=sent` once a
+Celery worker was running to consume them.
+
+The external API does not exist yet (Phase 6). Every document in this
+folder describes the **target** design for its domain; where that domain
+isn't built yet, the document says so rather than implying it's live.

@@ -11,20 +11,23 @@ ledger. See [docs/PRODUCT_REQUIREMENTS.md](docs/PRODUCT_REQUIREMENTS.md)
 for the full product vision and [docs/](docs/) for the complete
 specification set.
 
-**Status: Phase 1 + 2 + 3 + 4 complete.** Identity, multi-tenancy, RBAC,
-audit logging, customers/accounts, billing, the persistent control-number
-engine, the payment domain (full lifecycle, UNKNOWN-on-timeout handling,
-idempotent initiation and callbacks), a mock/sandbox provider adapter,
-signed outbound webhook delivery, an immutable financial ledger, the
-revenue engine (the TZS 50 control-number/payment fees are genuinely
-charged, exactly once each — the build spec's own worked example, one
-control number + five payments = TZS 300, is reproduced exactly),
-reconciliation, and settlement batching (with database-enforced
-double-settlement prevention) are implemented and tested against real
-PostgreSQL — 109 automated tests, plus extensive manual end-to-end
-verification including a real Celery worker delivering a real signed
-webhook. Notifications, receipts, and the external API do not exist yet —
-they arrive in later phases (see
+**Status: Phase 1 + 2 + 3 + 4 + 5 complete.** Identity, multi-tenancy,
+RBAC, audit logging, customers/accounts, billing, the persistent
+control-number engine, the payment domain (full lifecycle,
+UNKNOWN-on-timeout handling, idempotent initiation and callbacks), a
+mock/sandbox provider adapter, signed outbound webhook delivery, an
+immutable financial ledger, the revenue engine (the TZS 50
+control-number/payment fees are genuinely charged, exactly once each —
+the build spec's own worked example, one control number + five payments
+= TZS 300, is reproduced exactly), reconciliation, settlement batching
+(with database-enforced double-settlement prevention), templated
+multi-channel notifications (real email, MOCK/SANDBOX SMS), automatically
+generated receipts, and a focused reporting layer are all implemented and
+tested against real PostgreSQL — 131 automated tests, plus extensive
+manual end-to-end verification including a real Celery worker delivering
+a real signed webhook and, most recently, six real notification
+deliveries from one live payment flow. Only the external API doesn't
+exist yet — it arrives in Phase 6 (see
 [docs/PRODUCT_REQUIREMENTS.md](docs/PRODUCT_REQUIREMENTS.md#development-phases)).
 Nothing in this codebase claims to be a licensed payment institution; see
 [docs/compliance/REGULATORY_ASSUMPTIONS.md](docs/compliance/REGULATORY_ASSUMPTIONS.md).

@@ -23,7 +23,7 @@ convenient for tests).
 and their effects are directly assertable), locmem cache, and locmem
 email backend.
 
-## What's covered today (Phase 1 + 2 + 3 + 4 — 109 tests)
+## What's covered today (Phase 1 + 2 + 3 + 4 + 5 — 131 tests)
 
 - **Health check** — `apps/core/tests/tests.py`: DB/cache connectivity,
   correlation ID generation and echo.
@@ -123,6 +123,30 @@ email backend.
   first batch already claimed them; marking a batch completed records
   the external reference and dispatches a `settlement.completed`
   webhook.
+- **Notifications** (`apps/notifications/tests/tests.py`) — default
+  template variable substitution; a missing variable renders blank, never
+  `KeyError`; a tenant's `NotificationTemplate` override takes precedence
+  over the default, an inactive override is ignored; `send_notification`
+  creates exactly one `Notification` per channel with a usable recipient
+  and skips channels with none; email delivery lands in
+  `pytest-django`'s `mailoutbox`; the mock SMS channel marks a
+  notification `sent` without a real gateway; an unimplemented channel
+  (WhatsApp/push) fails loudly with a clear error, never silently; and
+  **integration tests wired through real domain events** — creating a
+  bill/control number sends the right notification, reusing a control
+  number sends no second one, a full payment sends `bill_fully_paid` (not
+  generic `payment_successful`), a partial payment sends `payment_partial`.
+- **Receipts** (`apps/receipts/tests/tests.py`) — a receipt is generated
+  automatically on a successful payment and *only* then (no receipt for a
+  failed payment; `generate_receipt()` raises `ValidationError` for any
+  non-`SUCCESSFUL` payment); calling it twice returns the same receipt,
+  never a duplicate; the snapshotted `remaining_balance_at_issue` matches
+  the bill's actual balance at that moment.
+- **Reports** (`apps/reports/tests/tests.py`) — the bills report's status
+  filter excludes non-matching bills; CSV export returns real
+  `text/csv` content; the outstanding-balances report excludes bills with
+  zero balance; the collections report's totals reflect only
+  `SUCCESSFUL` payments.
 
 **Also verified manually, end-to-end over real infrastructure**, outside
 the automated suite:
@@ -152,6 +176,14 @@ the automated suite:
   second generation attempt for the same period correctly claimed zero
   payments, and `run_reconciliation()` matched all five payments against
   the provider with zero exceptions.
+- **Phase 5** — a full bill → control-number → payment → receipt flow
+  against real PostgreSQL, real Redis, and a real Celery worker: the flow
+  produced six notifications (`bill_created`, `control_number_generated`,
+  `bill_fully_paid`, each on both email and SMS) and one receipt; after a
+  worker was confirmed running (a stale worker process from an earlier
+  session had been silently swallowing tasks with a `NotRegistered`
+  error — caught and fixed by clearing it), all six notifications reached
+  `status=sent` with real timestamps.
 
 ## Critical scenarios not yet testable (blocked on later phases)
 

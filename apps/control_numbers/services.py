@@ -64,6 +64,7 @@ def get_or_create_for_bill(*, tenant, bill, actor=None, expires_at=None):
                     target=control_number,
                 )
                 record_control_number_created(control_number, actor=actor)
+                _notify_control_number_generated(control_number)
             return control_number, True
         except IntegrityError:
             # Either a `value` collision (retry with a fresh value) or a
@@ -113,6 +114,7 @@ def get_or_create_for_account(*, tenant, customer_account, actor=None, expires_a
                     target=control_number,
                 )
                 record_control_number_created(control_number, actor=actor)
+                _notify_control_number_generated(control_number)
             return control_number, True
         except IntegrityError:
             existing = ControlNumber.objects.filter(
@@ -150,3 +152,31 @@ def expire_overdue(*, tenant=None) -> int:
         qs = qs.filter(tenant=tenant)
     count = qs.update(status=ControlNumberStatus.EXPIRED, updated_at=timezone.now())
     return count
+
+
+def _notify_control_number_generated(control_number: ControlNumber) -> None:
+    """CONTROL_NUMBER_GENERATED (build spec section 19) — only fired for
+    genuine creation, never for reuse (mirrors the fee rule exactly, for
+    the same reason: reuse isn't a new event worth notifying about)."""
+    from apps.notifications.services import send_notification
+
+    if control_number.bill_id:
+        customer_account = control_number.bill.customer_account
+        bill_number = control_number.bill.bill_number
+    else:
+        customer_account = control_number.customer_account
+        bill_number = ""
+
+    customer = customer_account.customer
+    send_notification(
+        tenant=control_number.tenant,
+        event_type="control_number_generated",
+        context={
+            "institution_name": control_number.tenant.name,
+            "customer_name": customer.full_name,
+            "bill_number": bill_number,
+            "control_number": control_number.value,
+        },
+        recipient_email=customer.email,
+        recipient_phone=customer.phone_number,
+    )

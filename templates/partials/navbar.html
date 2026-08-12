@@ -26,9 +26,6 @@
                     <li class="nav-item">
                         <a class="nav-link" href="{% url 'payments:list' %}">Payments</a>
                     </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'webhooks:list' %}">Webhooks</a>
-                    </li>
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">Finance</a>
                         <ul class="dropdown-menu">
@@ -36,6 +33,15 @@
                             <li><a class="dropdown-item" href="{% url 'revenue:summary' %}">Revenue</a></li>
                             <li><a class="dropdown-item" href="{% url 'reconciliation:list' %}">Reconciliation</a></li>
                             <li><a class="dropdown-item" href="{% url 'settlement:list' %}">Settlements</a></li>
+                        </ul>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">More</a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{% url 'webhooks:list' %}">Webhooks</a></li>
+                            <li><a class="dropdown-item" href="{% url 'notifications:list' %}">Notifications</a></li>
+                            <li><a class="dropdown-item" href="{% url 'receipts:list' %}">Receipts</a></li>
+                            <li><a class="dropdown-item" href="{% url 'reports:index' %}">Reports</a></li>
                         </ul>
                     </li>
                     {% endif %}

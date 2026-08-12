@@ -96,6 +96,7 @@ def initiate_payment(
             action="payment.failed", actor=actor, tenant=tenant, target=payment, metadata={"reason": str(exc)}
         )
         record_payment_failed(payment, actor=actor)
+        _notify(payment, "payment_failed")
         return payment
 
     payment.provider_reference = result.provider_reference
@@ -209,6 +210,7 @@ def refund_payment(payment: Payment, *, amount: Decimal | None = None, actor=Non
         )
         record_payment_refunded(payment, actor=actor)
         _dispatch(payment, "payment.refunded")
+        _notify(payment, "payment_refunded")
     return payment
 
 
@@ -225,6 +227,7 @@ def reverse_payment(payment: Payment, *, actor=None) -> Payment:
         record_audit_event(action="payment.reversed", actor=actor, tenant=payment.tenant, target=payment)
         record_payment_reversed(payment, actor=actor)
         _dispatch(payment, "payment.reversed")
+        _notify(payment, "payment_reversed")
     return payment
 
 
@@ -249,13 +252,17 @@ def _apply_outcome(payment: Payment, outcome: ProviderOutcome, *, actor=None) ->
         _post_settlement_ledger_entries(payment)
         record_payment_successful(payment, actor=actor)  # posts the platform's own fee entry
         _allocate_to_bill(payment)
+        receipt = _generate_receipt(payment)
+        _notify_payment_successful(payment, receipt)
         _dispatch(payment, "payment.successful")
     elif target == PaymentStatus.FAILED:
         record_audit_event(action="payment.failed", actor=actor, tenant=payment.tenant, target=payment)
         record_payment_failed(payment, actor=actor)
+        _notify(payment, "payment_failed")
         _dispatch(payment, "payment.failed")
     elif target == PaymentStatus.PENDING:
         record_audit_event(action="payment.pending", actor=actor, tenant=payment.tenant, target=payment)
+        _notify(payment, "payment_pending")
         _dispatch(payment, "payment.pending")
 
 
@@ -329,4 +336,67 @@ def _dispatch(payment: Payment, event_type: str) -> None:
             "currency": payment.currency,
             "status": payment.status,
         },
+    )
+
+
+def _customer_for_payment(payment: Payment):
+    control_number = payment.control_number
+    if control_number.bill_id:
+        return control_number.bill.customer_account.customer
+    return control_number.customer_account.customer
+
+
+def _notification_context(payment: Payment, customer, **extra) -> dict:
+    bill = payment.control_number.bill
+    context = {
+        "institution_name": payment.tenant.name,
+        "customer_name": customer.full_name,
+        "bill_number": bill.bill_number if bill is not None else "",
+        "control_number": payment.control_number.value,
+        "payment_reference": payment.merchant_reference,
+    }
+    context.update(extra)
+    return context
+
+
+def _notify(payment: Payment, event_type: str, **extra_context) -> None:
+    from apps.notifications.services import send_notification
+
+    customer = _customer_for_payment(payment)
+    send_notification(
+        tenant=payment.tenant,
+        event_type=event_type,
+        context=_notification_context(payment, customer, **extra_context),
+        recipient_email=customer.email,
+        recipient_phone=customer.phone_number,
+    )
+
+
+def _generate_receipt(payment: Payment):
+    from apps.receipts.services import generate_receipt
+
+    return generate_receipt(payment)
+
+
+def _notify_payment_successful(payment: Payment, receipt) -> None:
+    """Picks the most specific event for this outcome — build spec
+    section 19 lists PAYMENT_SUCCESSFUL, "partial payment," and "fully
+    paid" as distinct notification events; sending all three for one
+    payment would be redundant, so exactly one is chosen based on the
+    bill's resulting status (or PAYMENT_SUCCESSFUL for a persistent
+    control number with no single bill to be "fully paid")."""
+    bill = payment.control_number.bill
+    if bill is not None and bill.status == BillStatus.PAID:
+        event_type = "bill_fully_paid"
+    elif bill is not None and bill.status == BillStatus.PARTIALLY_PAID:
+        event_type = "payment_partial"
+    else:
+        event_type = "payment_successful"
+
+    _notify(
+        payment,
+        event_type,
+        paid_amount=str(payment.amount),
+        remaining_balance=str(bill.balance) if bill is not None else "",
+        receipt_number=receipt.receipt_number,
     )

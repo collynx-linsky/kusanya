@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Notifications{% endblock %}
+{% block content %}
+<h1 class="h3 mb-1">Notifications</h1>
+<p class="text-body-secondary">
+    Delivery log — email is sent via the configured backend (console in
+    development); SMS uses a MOCK/SANDBOX channel that logs instead of
+    calling a real gateway (see docs/NOTIFICATION_SPEC.md).
+</p>
+
+{% if notifications %}
+<div class="table-responsive">
+    <table class="table table-striped align-middle">
+        <thead><tr><th>Event</th><th>Channel</th><th>Recipient</th><th>Status</th><th>Sent</th></tr></thead>
+        <tbody>
+            {% for n in notifications %}
+            <tr>
+                <td>{{ n.get_event_type_display }}</td>
+                <td>{{ n.get_channel_display }}</td>
+                <td>{{ n.recipient }}</td>
+                <td>
+                    <span class="badge {% if n.status == 'sent' %}text-bg-success{% elif n.status == 'failed' %}text-bg-danger{% else %}text-bg-warning{% endif %}">
+                        {{ n.get_status_display }}
+                    </span>
+                </td>
+                <td>{{ n.sent_at|date:"Y-m-d H:i"|default:"—" }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<p class="text-body-secondary">No notifications sent yet.</p>
+{% endif %}
+{% endblock %}

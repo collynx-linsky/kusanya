@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Receipts{% endblock %}
+{% block content %}
+<h1 class="h3 mb-4">Receipts</h1>
+
+{% if receipts %}
+<div class="table-responsive">
+    <table class="table table-striped align-middle">
+        <thead><tr><th>Receipt #</th><th>Customer</th><th>Amount</th><th>Issued</th></tr></thead>
+        <tbody>
+            {% for r in receipts %}
+            <tr>
+                <td><a href="{% url 'receipts:detail' r.pk %}">{{ r.receipt_number }}</a></td>
+                <td>{{ r.customer_name }}</td>
+                <td>{{ r.amount }} {{ r.currency }}</td>
+                <td>{{ r.issued_at|date:"Y-m-d H:i" }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<p class="text-body-secondary">No receipts issued yet.</p>
+{% endif %}
+{% endblock %}

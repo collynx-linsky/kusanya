@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Bills report{% endblock %}
+{% block content %}
+<h1 class="h3 mb-4">Bills report</h1>
+
+<form method="get" class="row g-2 mb-3">
+    <div class="col-auto">
+        <select name="status" class="form-select">
+            <option value="">All statuses</option>
+            {% for value, label in status_choices %}
+            <option value="{{ value }}" {% if request.GET.status == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="col-auto"><input type="date" name="date_from" class="form-control" value="{{ request.GET.date_from }}" placeholder="From"></div>
+    <div class="col-auto"><input type="date" name="date_to" class="form-control" value="{{ request.GET.date_to }}" placeholder="To"></div>
+    <div class="col-auto"><button type="submit" class="btn btn-primary">Filter</button></div>
+    <div class="col-auto"><a href="?{{ request.GET.urlencode }}&format=csv" class="btn btn-outline-secondary">Export CSV</a></div>
+</form>
+
+<p class="text-body-secondary">Total: {{ total }}</p>
+
+{% if bills %}
+<div class="table-responsive">
+    <table class="table table-striped align-middle">
+        <thead><tr><th>Bill #</th><th>Customer account</th><th>Status</th><th>Total</th><th>Created</th></tr></thead>
+        <tbody>
+            {% for bill in bills %}
+            <tr>
+                <td><a href="{% url 'billing:detail' bill.pk %}">{{ bill.bill_number }}</a></td>
+                <td>{{ bill.customer_account.name }}</td>
+                <td>{{ bill.get_status_display }}</td>
+                <td>{{ bill.total_amount }} {{ bill.currency }}</td>
+                <td>{{ bill.created_at|date:"Y-m-d" }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<p class="text-body-secondary">No bills match these filters.</p>
+{% endif %}
+{% endblock %}

@@ -75,6 +75,10 @@ LOCAL_APPS = [
     "apps.revenue",
     "apps.reconciliation",
     "apps.settlement",
+    # Phase 5 — notifications, receipts, reports:
+    "apps.notifications",
+    "apps.receipts",
+    "apps.reports",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS

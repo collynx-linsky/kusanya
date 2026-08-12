@@ -54,6 +54,9 @@
                 </p>
                 {% endif %}
                 {% if payment.status == 'successful' %}
+                {% if payment.receipt %}
+                <a href="{% url 'receipts:detail' payment.receipt.pk %}" class="btn btn-success w-100">View receipt</a>
+                {% endif %}
                 <form method="post" action="{% url 'payments:refund' payment.pk %}">
                     {% csrf_token %}
                     <button type="submit" class="btn btn-outline-danger w-100">Refund</button>

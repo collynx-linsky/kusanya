@@ -56,7 +56,7 @@ ADR-005 for why later-phase apps aren't pre-scaffolded.
 | 2 | **Done.** Customer, Account, Billing, Control Number |
 | 3 | **Done.** Payment domain, provider abstraction, mock provider, payment lifecycle, idempotency, webhooks |
 | 4 | **Done.** Ledger, Revenue, Reconciliation, Settlement |
-| 5 | Notifications, Receipts, Reports |
+| 5 | **Done.** Notifications, Receipts, Reports |
 | 6 | External API, API keys, webhooks, OpenAPI docs |
 | 7 | Security hardening, full test coverage, monitoring, production prep |
 
@@ -84,13 +84,13 @@ ADR-005 for why later-phase apps aren't pre-scaffolded.
   worked example reproduced exactly).
 - **D — Payment:** customer → provider → callback → successful → ledger →
   balance update → platform fee → notification → receipt. **Fully
-  implemented except notification/receipt** (Phase 3/4:
-  `apps.payments.services`, `apps.ledger`, `apps.revenue` — a payment
-  posts `PAYMENT_RECEIVED`/`INSTITUTION_ENTITLEMENT`/
-  `PLATFORM_PAYMENT_FEE` ledger entries and the TZS 50 fee, in addition to
-  updating the bill balance and dispatching a webhook). Notifications/
-  receipts (Phase 5) don't exist — a webhook fires, but nothing emails/
-  SMS's the customer or generates a receipt document yet.
+  implemented, end to end** (Phase 3/4/5: `apps.payments.services`,
+  `apps.ledger`, `apps.revenue`, `apps.notifications`, `apps.receipts` —
+  a payment posts `PAYMENT_RECEIVED`/`INSTITUTION_ENTITLEMENT`/
+  `PLATFORM_PAYMENT_FEE` ledger entries, the TZS 50 fee, a webhook, a
+  templated email + SMS notification, and an automatically generated
+  receipt, in that order, all verified in one live run against real
+  infrastructure).
 - **E — Partial payments:** multiple payments against one bill until
   fully paid. **Implemented** — `apps.payments.services._allocate_to_bill`
   transitions `ACTIVE → PARTIALLY_PAID → PAID` as successive payments are
@@ -119,8 +119,6 @@ Billing, control numbers, payments, provider adapters, ledger, revenue,
 reconciliation, settlement, notifications, receipts, reports, and the
 external REST API. Any UI element that might imply these exist was
 labeled "Not yet implemented" rather than showing placeholder/fake data
-(build spec section 44). As of Phase 4: billing, control numbers,
-payments (including fees), the provider abstraction, outbound webhooks,
-the ledger, revenue, reconciliation, and settlement are all built (Phases
-2–4, above) — only notifications, receipts, reports, and the external API
-remain out of scope, until Phases 5 and 6.
+(build spec section 44). As of Phase 5: everything above except the
+external REST API is built (Phases 2–5) — only the API, and the ERP
+integrations it would enable, remain out of scope, until Phase 6.

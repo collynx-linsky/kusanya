@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Collections report{% endblock %}
+{% block content %}
+<h1 class="h3 mb-4">Collections report</h1>
+
+<form method="get" class="row g-2 mb-4">
+    <div class="col-auto"><input type="date" name="date_from" class="form-control" value="{{ request.GET.date_from }}" placeholder="From"></div>
+    <div class="col-auto"><input type="date" name="date_to" class="form-control" value="{{ request.GET.date_to }}" placeholder="To"></div>
+    <div class="col-auto"><button type="submit" class="btn btn-primary">Filter</button></div>
+</form>
+
+<div class="row g-3">
+    <div class="col-md-3">
+        <div class="card shadow-sm h-100"><div class="card-body">
+            <div class="text-body-secondary small text-uppercase">Successful payments</div>
+            <div class="display-6">{{ payment_count }}</div>
+        </div></div>
+    </div>
+    <div class="col-md-3">
+        <div class="card shadow-sm h-100"><div class="card-body">
+            <div class="text-body-secondary small text-uppercase">Gross collected</div>
+            <div class="display-6">{{ gross }}</div>
+        </div></div>
+    </div>
+    <div class="col-md-3">
+        <div class="card shadow-sm h-100"><div class="card-body">
+            <div class="text-body-secondary small text-uppercase">Platform revenue</div>
+            <div class="display-6">{{ platform_revenue }}</div>
+        </div></div>
+    </div>
+</div>
+<p class="text-body-secondary small mt-3">
+    KUSANYA's fee is charged separately, not deducted from gross collections
+    — see docs/MONEY_FLOW.md.
+</p>
+{% endblock %}

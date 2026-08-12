@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}Reports{% endblock %}
+{% block content %}
+<h1 class="h3 mb-4">Reports</h1>
+<div class="row g-3">
+    <div class="col-md-4">
+        <a href="{% url 'reports:bills' %}" class="text-decoration-none">
+            <div class="card shadow-sm h-100"><div class="card-body">
+                <h2 class="h6">Bills</h2>
+                <p class="text-body-secondary small mb-0">All bills, filterable by status and date.</p>
+            </div></div>
+        </a>
+    </div>
+    <div class="col-md-4">
+        <a href="{% url 'reports:payments' %}" class="text-decoration-none">
+            <div class="card shadow-sm h-100"><div class="card-body">
+                <h2 class="h6">Payments</h2>
+                <p class="text-body-secondary small mb-0">Successful, failed, pending — filterable by status and date.</p>
+            </div></div>
+        </a>
+    </div>
+    <div class="col-md-4">
+        <a href="{% url 'reports:collections' %}" class="text-decoration-none">
+            <div class="card shadow-sm h-100"><div class="card-body">
+                <h2 class="h6">Collections</h2>
+                <p class="text-body-secondary small mb-0">Gross collections and platform revenue for a period.</p>
+            </div></div>
+        </a>
+    </div>
+    <div class="col-md-4">
+        <a href="{% url 'reports:outstanding-balances' %}" class="text-decoration-none">
+            <div class="card shadow-sm h-100"><div class="card-body">
+                <h2 class="h6">Outstanding balances</h2>
+                <p class="text-body-secondary small mb-0">Bills not yet fully paid.</p>
+            </div></div>
+        </a>
+    </div>
+    <div class="col-md-4">
+        <a href="{% url 'reports:audit' %}" class="text-decoration-none">
+            <div class="card shadow-sm h-100"><div class="card-body">
+                <h2 class="h6">Audit events</h2>
+                <p class="text-body-secondary small mb-0">Every recorded action for your institution.</p>
+            </div></div>
+        </a>
+    </div>
+    <div class="col-md-4">
+        <a href="{% url 'reconciliation:list' %}" class="text-decoration-none">
+            <div class="card shadow-sm h-100"><div class="card-body">
+                <h2 class="h6">Reconciliation</h2>
+                <p class="text-body-secondary small mb-0">Reconciliation runs and exceptions.</p>
+            </div></div>
+        </a>
+    </div>
+    <div class="col-md-4">
+        <a href="{% url 'settlement:list' %}" class="text-decoration-none">
+            <div class="card shadow-sm h-100"><div class="card-body">
+                <h2 class="h6">Settlements</h2>
+                <p class="text-body-secondary small mb-0">Settlement batches recorded for your institution.</p>
+            </div></div>
+        </a>
+    </div>
+    <div class="col-md-4">
+        <a href="{% url 'revenue:summary' %}" class="text-decoration-none">
+            <div class="card shadow-sm h-100"><div class="card-body">
+                <h2 class="h6">Platform revenue</h2>
+                <p class="text-body-secondary small mb-0">What KUSANYA has charged, by event type.</p>
+            </div></div>
+        </a>
+    </div>
+    <div class="col-md-4">
+        <a href="{% url 'ledger:list' %}" class="text-decoration-none">
+            <div class="card shadow-sm h-100"><div class="card-body">
+                <h2 class="h6">Ledger</h2>
+                <p class="text-body-secondary small mb-0">Every financial entry, itemized.</p>
+            </div></div>
+        </a>
+    </div>
+    <div class="col-md-4">
+        <a href="{% url 'notifications:list' %}" class="text-decoration-none">
+            <div class="card shadow-sm h-100"><div class="card-body">
+                <h2 class="h6">Notifications</h2>
+                <p class="text-body-secondary small mb-0">Delivery log for every notification sent.</p>
+            </div></div>
+        </a>
+    </div>
+</div>
+{% endblock %}

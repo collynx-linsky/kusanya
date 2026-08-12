@@ -76,6 +76,7 @@ def get_or_create_bill(
                     after={"total_amount": str(bill.total_amount), "status": bill.status},
                 )
                 _dispatch_bill_event(bill, "bill.created")
+                _notify_bill_created(bill)
             return bill, True
         except IntegrityError:
             # Could be a bill_number collision (retry generation) or a
@@ -116,4 +117,21 @@ def _dispatch_bill_event(bill: Bill, event_type: str) -> None:
             "currency": bill.currency,
             "customer_account": bill.customer_account.name,
         },
+    )
+
+
+def _notify_bill_created(bill: Bill) -> None:
+    from apps.notifications.services import send_notification
+
+    customer = bill.customer_account.customer
+    send_notification(
+        tenant=bill.tenant,
+        event_type="bill_created",
+        context={
+            "institution_name": bill.tenant.name,
+            "customer_name": customer.full_name,
+            "bill_number": bill.bill_number,
+        },
+        recipient_email=customer.email,
+        recipient_phone=customer.phone_number,
     )

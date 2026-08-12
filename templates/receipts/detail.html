@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Receipt {{ receipt.receipt_number }}{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-12 col-lg-6">
+        <div class="card shadow-sm">
+            <div class="card-body p-4">
+                <div class="text-center mb-4">
+                    <h1 class="h4 mb-0">{{ receipt.institution_name }}</h1>
+                    <p class="text-body-secondary small mb-0">Payment Receipt</p>
+                </div>
+                <table class="table table-borderless mb-3">
+                    <tbody>
+                        <tr><th>Receipt number</th><td class="text-end">{{ receipt.receipt_number }}</td></tr>
+                        <tr><th>Date</th><td class="text-end">{{ receipt.issued_at|date:"Y-m-d H:i" }}</td></tr>
+                        <tr><th>Customer</th><td class="text-end">{{ receipt.customer_name }}</td></tr>
+                        {% if receipt.bill_number %}
+                        <tr><th>Bill</th><td class="text-end">{{ receipt.bill_number }}</td></tr>
+                        {% endif %}
+                        <tr><th>Control number</th><td class="text-end font-monospace">{{ receipt.control_number }}</td></tr>
+                        <tr><th>Payment reference</th><td class="text-end font-monospace">{{ receipt.payment_reference }}</td></tr>
+                        <tr><th>Channel</th><td class="text-end">{{ receipt.payment_channel_label }}</td></tr>
+                        <tr class="fw-bold border-top"><th>Amount paid</th><td class="text-end">{{ receipt.amount }} {{ receipt.currency }}</td></tr>
+                        {% if receipt.remaining_balance_at_issue is not None %}
+                        <tr><th>Remaining balance</th><td class="text-end">{{ receipt.remaining_balance_at_issue }} {{ receipt.currency }}</td></tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+                <p class="text-body-secondary small text-center mb-0">
+                    Issued once this payment was confirmed successful.
+                </p>
+            </div>
+        </div>
+        <div class="text-center mt-3 d-print-none">
+            <button onclick="window.print()" class="btn btn-outline-primary btn-sm">Print</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
