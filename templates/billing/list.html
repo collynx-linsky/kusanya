@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Bills{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0">Bills</h1>
+    <a href="{% url 'billing:create' %}" class="btn btn-primary">New bill</a>
+</div>
+
+{% if bills %}
+<div class="table-responsive">
+    <table class="table table-striped align-middle">
+        <thead>
+            <tr><th>Bill #</th><th>Account</th><th>Amount</th><th>Status</th><th>Control number</th></tr>
+        </thead>
+        <tbody>
+            {% for bill in bills %}
+            <tr>
+                <td><a href="{% url 'billing:detail' bill.pk %}">{{ bill.bill_number }}</a></td>
+                <td>{{ bill.customer_account }}</td>
+                <td>{{ bill.total_amount }} {{ bill.currency }}</td>
+                <td>
+                    <span class="badge
+                        {% if bill.status == 'paid' %}text-bg-success
+                        {% elif bill.status == 'partially_paid' %}text-bg-info
+                        {% elif bill.status == 'cancelled' or bill.status == 'expired' %}text-bg-secondary
+                        {% elif bill.status == 'disputed' %}text-bg-danger
+                        {% else %}text-bg-warning{% endif %}">{{ bill.get_status_display }}</span>
+                </td>
+                <td>{{ bill.control_number.value|default:"—" }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<p class="text-body-secondary">No bills yet.</p>
+{% endif %}
+{% endblock %}

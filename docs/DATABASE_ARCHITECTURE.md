@@ -35,7 +35,15 @@ that writes is wrapped in a transaction by default.
   `PlatformMembership` has `UniqueConstraint(user, role)`, `Branch`/
   `Department` have per-tenant unique-name constraints — enforced by
   Postgres, not just Django form validation, so a bug elsewhere in the
-  code can't silently create duplicate rows.
+  code can't silently create duplicate rows. Phase 2 extends this with
+  **conditional unique constraints** (`UniqueConstraint(..., condition=Q(...))`)
+  where uniqueness only applies to a subset of rows — e.g.
+  `Customer`/`CustomerAccount`/`Bill` only enforce uniqueness on
+  `external_reference` when it's non-blank (so many blank references
+  don't collide), and `ControlNumber` only enforces "at most one per
+  account" among `status="active"` rows (so historical
+  expired/cancelled ones don't block reissuing) — see
+  [../ARCHITECTURE_DECISIONS.md](../ARCHITECTURE_DECISIONS.md) ADR-011.
 - **Tenant-scoped models inherit `TenantScopedModel`**, which adds a
   required `tenant` FK with `on_delete=PROTECT` — a tenant can't be
   deleted out from under data that still references it.

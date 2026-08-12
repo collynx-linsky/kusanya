@@ -39,11 +39,22 @@ and reporting. It is explicitly **not** a school-specific system — see
 | [COMPLIANCE_ASSUMPTIONS.md](COMPLIANCE_ASSUMPTIONS.md) | Summary — see compliance/ for detail |
 | [compliance/REGULATORY_ASSUMPTIONS.md](compliance/REGULATORY_ASSUMPTIONS.md) | Full regulatory-boundary documentation |
 
-## What exists today (Phase 1)
+## What exists today (Phase 1 + 2)
 
-Identity (`apps.users`), authentication (`apps.accounts`), multi-tenancy
-and RBAC (`apps.tenants`), organizational sub-structure
+**Phase 1:** identity (`apps.users`), authentication (`apps.accounts`),
+multi-tenancy and RBAC (`apps.tenants`), organizational sub-structure
 (`apps.organizations`), and the hash-chained audit log (`apps.audit`).
-Nothing billing- or payment-related exists yet. Every document in this
-folder describes the **target** design for its domain; where that domain
-isn't built yet, the document says so rather than implying it's live.
+
+**Phase 2:** customers and billing relationships (`apps.customers`),
+bills with an enforced status state machine (`apps.billing`), and the
+persistent control-number engine with its create-once/reuse-many
+guarantee (`apps.control_numbers`) — all idempotent by
+`external_reference`, all tenant-isolated, all tested against real
+PostgreSQL and (for the core control-number guarantee) verified over
+real HTTP end to end.
+
+Payments, the provider abstraction, the ledger, reconciliation,
+settlement, notifications, receipts, reports, and the external API do not
+exist yet (Phase 3–6). Every document in this folder describes the
+**target** design for its domain; where that domain isn't built yet, the
+document says so rather than implying it's live.

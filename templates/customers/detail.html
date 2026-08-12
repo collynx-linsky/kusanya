@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}{{ customer.full_name }}{% endblock %}
+{% block content %}
+<h1 class="h3 mb-1">{{ customer.full_name }}</h1>
+<p class="text-body-secondary">
+    {{ customer.email|default:"No email" }} · {{ customer.phone_number|default:"No phone" }}
+</p>
+
+<div class="d-flex justify-content-between align-items-center mt-4 mb-2">
+    <h2 class="h5 mb-0">Accounts</h2>
+    <a href="{% url 'customers:account-create' customer.pk %}" class="btn btn-sm btn-primary">New account</a>
+</div>
+
+{% if accounts %}
+<div class="table-responsive">
+    <table class="table table-striped align-middle">
+        <thead><tr><th>Name</th><th>Revenue source</th><th>Bills</th></tr></thead>
+        <tbody>
+            {% for account in accounts %}
+            <tr>
+                <td>{{ account.name }}</td>
+                <td>{{ account.revenue_source|default:"—" }}</td>
+                <td>{{ account.bills.count }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<p class="text-body-secondary">No accounts yet.</p>
+{% endif %}
+{% endblock %}

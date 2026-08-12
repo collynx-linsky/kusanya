@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Customers{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0">Customers</h1>
+    <a href="{% url 'customers:create' %}" class="btn btn-primary">New customer</a>
+</div>
+
+{% if customers %}
+<div class="table-responsive">
+    <table class="table table-striped align-middle">
+        <thead>
+            <tr><th>Name</th><th>Email</th><th>Phone</th><th>Accounts</th></tr>
+        </thead>
+        <tbody>
+            {% for customer in customers %}
+            <tr>
+                <td><a href="{% url 'customers:detail' customer.pk %}">{{ customer.full_name }}</a></td>
+                <td>{{ customer.email|default:"—" }}</td>
+                <td>{{ customer.phone_number|default:"—" }}</td>
+                <td>{{ customer.accounts.count }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<p class="text-body-secondary">No customers yet.</p>
+{% endif %}
+{% endblock %}

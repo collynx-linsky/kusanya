@@ -59,16 +59,25 @@ def onboard(request):
 
 @login_required
 def dashboard(request):
-    """Tenant portal shell. Real collections/billing figures arrive in later
-    phases — this shows only what genuinely exists today (membership,
-    tenant status) rather than fabricating numbers for empty domains."""
+    """Tenant portal shell. Payment/collections figures arrive with Phase
+    3/4 — this shows only what genuinely exists today (membership,
+    customers, bills, control numbers) rather than fabricating numbers
+    for domains that don't exist yet (e.g. no "collected today" tile,
+    since nothing can be paid yet)."""
     tenant = request.tenant
     if tenant is None:
         return render(request, "dashboard/no_access.html")
 
+    from apps.billing.models import Bill
+    from apps.control_numbers.models import ControlNumber
+    from apps.customers.models import Customer
+
     context = {
         "tenant": tenant,
         "member_count": TenantMembership.objects.filter(tenant=tenant, is_active=True).count(),
+        "customer_count": Customer.objects.filter(tenant=tenant).count(),
+        "bill_count": Bill.objects.filter(tenant=tenant).count(),
+        "control_number_count": ControlNumber.objects.filter(tenant=tenant).count(),
     }
     return render(request, "dashboard/tenant_dashboard.html", context)
 

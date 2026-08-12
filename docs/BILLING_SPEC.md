@@ -1,11 +1,13 @@
 # Billing Specification
 
-**Status: not yet implemented** (Phase 2). This document specifies the
-design the billing engine must follow.
+**Status: implemented (Phase 2), partially.** Code: `apps/billing/`. Bill
+creation, line items, status state machine, and cancellation exist.
+Payments, partial-payment tracking, and overpayment handling do not exist
+yet (Phase 3/4) — see "What's not built yet" below.
 
 ## Bill status state machine
 
-```
+```text
 DRAFT → ACTIVE → PARTIALLY_PAID → PAID
            │           │
            ├──────► EXPIRED
@@ -31,17 +33,31 @@ Bill status is derived from the underlying ledger (sum of allocated
 payments vs. bill total), never hand-set to `PAID` by application code
 without that sum actually reaching the bill total — this mirrors the
 control-number balance rule in [CONTROL_NUMBER_SPEC.md](CONTROL_NUMBER_SPEC.md).
+**Implemented today:** `Bill.transition_to(new_status)` enforces the
+diagram above via an explicit `ALLOWED_TRANSITIONS` table
+(`apps/billing/models.py`) — an invalid jump (e.g. `DRAFT → PAID`,
+skipping `ACTIVE`) raises `ValidationError` rather than silently
+succeeding; tested in `apps/billing/tests/tests.py::TestBillStateMachine`.
+The `PARTIALLY_PAID`/`PAID` transitions exist in the allowed-transitions
+table but nothing calls them yet — there's no `Payment` model to drive
+them until Phase 3.
 
 ## What a bill supports
 
-Line items (`BillItem`), taxes/levies where configured by the tenant and
-legally applicable, discounts, due dates, partial payments, full
-payments, overpayments (subject to configurable tenant rules — some
-tenants may want overpayments rejected, others may want them credited to
-the customer's account balance), cancellation, expiry, recurrence,
-free-form metadata for sector-specific detail, and an external reference
-so ERP-originated bills can be looked up by the caller's own ID
-(idempotency — see build spec section 14's `INV-2026-00125` example).
+**Implemented (Phase 2):** line items (`BillItem`, with `quantity` ×
+`unit_amount` → `line_total`, and `Bill.total_amount` recomputed from
+them via `recalculate_total()` — never hand-edited), due dates,
+cancellation, free-form `metadata` JSON for sector-specific detail, and
+idempotent creation by `external_reference` (see below). The portal's
+quick-bill form (`apps/billing/views.py::bill_create`) creates
+single-item bills; the underlying `get_or_create_bill()` service already
+accepts an arbitrary items list — multi-item entry through the portal
+UI itself isn't built yet, only through that service/admin.
+
+**Not yet implemented:** taxes/levies, discounts, partial/full payment
+application, overpayment handling, recurrence, and expiry sweeping — all
+depend on the `Payment` domain (Phase 3) or a scheduler decision
+(expiry), neither of which exist yet.
 
 ## Sector neutrality
 
@@ -56,4 +72,13 @@ generated the bill. See
 
 An ERP retrying a "create bill" call with the same `external_reference`
 must get back the existing bill, not a duplicate — same idempotency
-principle as control numbers (build spec section 14).
+principle as control numbers (build spec section 14). **Implemented as**
+`apps.billing.services.get_or_create_bill()`: a repeat call with a
+matching `external_reference` returns the original bill **unchanged** —
+the retried call's items are not applied, matching "did you already do
+this," not "upsert." Tested in
+`TestBillIdempotency::test_repeat_call_with_same_external_reference_returns_existing_unchanged`.
+A losing race between two concurrent identical requests is resolved the
+same way as control numbers: catch the `IntegrityError` from the
+`UniqueConstraint` on `(tenant, external_reference)`, re-fetch, return
+the winner.

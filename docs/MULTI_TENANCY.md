@@ -17,9 +17,12 @@ Tenant A must never be able to access Tenant B's data. This is enforced,
 not just conventionally followed:
 
 1. **Every tenant-owned model inherits `apps.core.models.TenantScopedModel`**,
-   which requires a `tenant` foreign key on every such row (currently:
-   `apps.organizations.Branch`/`Department`; every Phase 2+ domain model
-   will do the same).
+   which requires a `tenant` foreign key on every such row:
+   `apps.organizations.Branch`/`Department` (Phase 1), and
+   `apps.customers.Customer`/`CustomerAccount`,
+   `apps.billing.RevenueSource`/`Bill`/`BillItem`,
+   `apps.control_numbers.ControlNumber` (Phase 2). Every future domain
+   model follows the same pattern.
 
 2. **`request.tenant` is resolved from membership, not from client
    input.** `apps.tenants.middleware.TenantResolutionMiddleware` looks up
@@ -44,10 +47,17 @@ API-key-based tenant resolution for external ERP/POS integrations (Phase
 authenticated credential, never trust a client-supplied tenant ID), just
 via an API key/secret instead of a session. Row-level tenant filtering at
 the queryset layer (e.g. a manager that automatically scopes
-`Model.objects` to `request.tenant`) is not yet implemented — Phase 2's
-first tenant-scoped domain model (`Customer`) should introduce this
-pattern rather than each app reinventing manual `.filter(tenant=...)`
-calls.
+`Model.objects` to `request.tenant`) is still not implemented — Phase 2's
+views (`apps.customers.views`, `apps.billing.views`,
+`apps.control_numbers.views`) each filter explicitly with
+`.filter(tenant=request.tenant)`/`get_object_or_404(..., tenant=request.tenant)`
+rather than an automatic manager, and this is directly what the Phase 2
+tenant-isolation tests exercise (`TestBillPortalTenantIsolation`: a
+guessed URL for another tenant's bill 404s, another tenant's bill never
+appears in your bill list). An automatic tenant-scoping manager would
+reduce the chance of a future view forgetting this filter — worth
+introducing before Phase 3 adds more tenant-scoped views, rather than
+each app continuing to repeat the same explicit filter by convention.
 
 ## Tenant lifecycle
 

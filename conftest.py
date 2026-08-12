@@ -41,3 +41,23 @@ def make_platform_role(db):
         return PlatformMembership.objects.create(user=user, role=role)
 
     return _make
+
+
+@pytest.fixture
+def make_customer(db):
+    from apps.customers.models import Customer
+
+    def _make(tenant, full_name="Jane Payer", **kwargs):
+        return Customer.objects.create(tenant=tenant, full_name=full_name, **kwargs)
+
+    return _make
+
+
+@pytest.fixture
+def make_customer_account(db):
+    from apps.customers.models import CustomerAccount
+
+    def _make(tenant, customer, name="Test Account", **kwargs):
+        return CustomerAccount.objects.create(tenant=tenant, customer=customer, name=name, **kwargs)
+
+    return _make

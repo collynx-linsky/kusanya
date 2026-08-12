@@ -16,12 +16,42 @@
             </div>
         </div>
     </div>
+    <div class="col-6 col-lg-3">
+        <a href="{% url 'customers:list' %}" class="text-decoration-none text-body">
+        <div class="card shadow-sm h-100">
+            <div class="card-body">
+                <div class="text-body-secondary small text-uppercase">Customers</div>
+                <div class="display-6">{{ customer_count }}</div>
+            </div>
+        </div>
+        </a>
+    </div>
+    <div class="col-6 col-lg-3">
+        <a href="{% url 'billing:list' %}" class="text-decoration-none text-body">
+        <div class="card shadow-sm h-100">
+            <div class="card-body">
+                <div class="text-body-secondary small text-uppercase">Bills</div>
+                <div class="display-6">{{ bill_count }}</div>
+            </div>
+        </div>
+        </a>
+    </div>
+    <div class="col-6 col-lg-3">
+        <a href="{% url 'control_numbers:list' %}" class="text-decoration-none text-body">
+        <div class="card shadow-sm h-100">
+            <div class="card-body">
+                <div class="text-body-secondary small text-uppercase">Control numbers</div>
+                <div class="display-6">{{ control_number_count }}</div>
+            </div>
+        </div>
+        </a>
+    </div>
 </div>
 
 <div class="alert alert-secondary mt-4">
-    <strong>Not yet implemented:</strong> customers, bills, control numbers,
-    payments, receipts and reports. Phase 1 delivers only the institution
-    account, membership, and authentication foundation these will be built
-    on. See docs/PRODUCT_REQUIREMENTS.md for the phased roadmap.
+    <strong>Not yet implemented:</strong> payments, receipts, balances,
+    reconciliation and reports — a bill and its control number can be
+    created, but nothing can be paid against it yet. See
+    docs/PRODUCT_REQUIREMENTS.md for the phased roadmap.
 </div>
 {% endblock %}

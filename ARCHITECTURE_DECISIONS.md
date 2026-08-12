@@ -218,3 +218,112 @@ is required — the `requirements/*.txt` floors (`Django>=5.1,<6.0` etc.)
 are chosen to work on 3.12–3.14. If a future dependency drops 3.12
 support before this decision is revisited, bump the Docker image, not the
 requirement floors.
+
+---
+
+## ADR-010: Idempotency via `get_or_create_*()` + DB constraint + `IntegrityError` recovery, not check-then-create
+
+**Decision:** Every idempotent creation path in Phase 2
+(`apps.customers.services.get_or_create_customer`/`_account`,
+`apps.billing.services.get_or_create_bill`,
+`apps.control_numbers.services.get_or_create_for_bill`/`_for_account`)
+follows the same three-part pattern: (1) query for an existing row
+matching the idempotency key, return it if found; (2) if not found,
+attempt to create inside `transaction.atomic()`; (3) if creation raises
+`IntegrityError` (a concurrent request won the race), re-query for the
+row that request just created and return it — never treat that
+`IntegrityError` as a genuine failure.
+
+**Reason:** A plain "check, then create" (steps 1–2 only) has a race
+window: two concurrent requests for the same new bill can both pass step
+1's check before either commits step 2, producing two bills for what
+should have been one idempotent operation. Build spec section 14 requires
+idempotency to actually hold under concurrency (this is exactly the
+scenario a retried ERP webhook or a double-clicked "create bill" button
+produces), not just in the common non-concurrent case. The database
+constraint (a `UniqueConstraint` on the idempotency key, or — for
+control numbers bound to a bill — the `bill` field's own
+`OneToOneField`) is the actual source of truth that makes the race safe;
+the `IntegrityError`-catch-and-re-fetch is just how the losing request
+finds out what the winner created instead of surfacing a 500.
+
+**Alternatives considered:** A `SELECT ... FOR UPDATE` lock on some
+parent row before the check. Rejected for Phase 2 — it requires
+identifying and locking the right parent row per idempotency scope
+(straightforward for "one control number per bill," less obvious for
+"one active control number per account" without also locking out
+legitimate concurrent reads), and the constraint-based approach gives the
+same correctness guarantee with less code and no lock contention on the
+happy path.
+
+**Consequences:** Every future idempotent-creation feature (payments,
+webhook processing — Phase 3) should follow this same three-part shape
+rather than inventing a new idempotency mechanism per domain. Tested in
+`apps/customers/tests/tests.py`, `apps/billing/tests/tests.py`, and
+`apps/control_numbers/tests/tests.py`; the DB-level race itself isn't
+exercised by a concurrency test yet (would need real parallel DB
+connections, not just sequential test calls) — worth adding once a
+domain's correctness is sensitive enough to justify the test complexity.
+
+---
+
+## ADR-011: `ControlNumber.bill` is a strict `OneToOneField`; `ControlNumber.customer_account` uses a conditional unique constraint instead
+
+**Decision:** A `Bill` can have at most one `ControlNumber`, ever,
+enforced by `OneToOneField` (no conditional exception). A
+`CustomerAccount` can have at most one **active** `ControlNumber` at a
+time, enforced by `UniqueConstraint(fields=["customer_account"],
+condition=Q(status="active"))` — but can accumulate multiple
+`CANCELLED`/`EXPIRED` ones over its lifetime, each superseded by a new
+active one.
+
+**Reason:** These two ownership modes have genuinely different
+lifecycles (see [docs/CONTROL_NUMBER_SPEC.md](docs/CONTROL_NUMBER_SPEC.md)).
+A one-time, bill-bound control number has no legitimate reason to be
+reissued — a bill is a single, terminal billing event; if its control
+number is somehow wrong, the correct fix is to cancel the bill and the
+control number goes with it (via `on_delete=CASCADE`), not reissue a
+second control number for the same bill. A persistent, account-bound
+control number is explicitly designed to be reused across many billing
+cycles and must be able to be re-issued after expiry/cancellation without
+losing the history of what was issued before.
+
+**Alternatives considered:** Using the same conditional-unique-constraint
+pattern for both, i.e. no `OneToOneField` on `bill` either. Rejected —
+it would silently permit a "reissued" one-time control number, which
+build spec section 10 explicitly warns against ("never silently reused
+for another customer/account") and which has no legitimate use case in
+this model; making it structurally impossible via `OneToOneField` is
+stronger than relying on service-layer discipline to never do it.
+
+**Consequences:** If a genuine future need for "reissue a one-time
+control number" emerges (e.g. a compliance requirement to invalidate and
+replace a compromised control number), this ADR should be revisited
+explicitly rather than the constraint being quietly loosened.
+
+---
+
+## ADR-012: `Bill.transition_to()` enforces status transitions via an explicit table, not free-form status assignment
+
+**Decision:** `Bill.status` is never set directly by application code
+(`bill.status = "paid"; bill.save()`); it's only ever changed through
+`Bill.transition_to(new_status)`, which checks the target against an
+explicit `ALLOWED_TRANSITIONS` dict and raises `ValidationError` for any
+transition not listed (e.g. `DRAFT → PAID` directly, skipping `ACTIVE`).
+
+**Reason:** [docs/BILLING_SPEC.md](docs/BILLING_SPEC.md)'s state diagram
+is only actually true of the system if something enforces it — a status
+field that any code can freely reassign is a diagram in a doc, not a
+guarantee. This matters more than usual for a financial-adjacent status
+field: `PAID` should only ever be reachable through the paths the
+business logic actually intends (once Phase 3 wires payments into it),
+not as a side effect of a bug elsewhere setting the field directly.
+
+**Consequences:** Every future status transition (the `Payment` domain
+marking a bill `PARTIALLY_PAID`/`PAID` in Phase 3, a scheduled job
+marking it `EXPIRED`) must go through `transition_to()`, extending
+`ALLOWED_TRANSITIONS` if a genuinely new transition is needed rather than
+bypassing the method. This is directly analogous to
+`ControlNumber`/`AuditLog`'s pattern of enforcing an invariant at the
+model layer rather than trusting every call site to remember the rule
+(see ADR-006, ADR-011).

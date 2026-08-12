@@ -23,7 +23,7 @@ convenient for tests).
 and their effects are directly assertable), locmem cache, and locmem
 email backend.
 
-## What's covered today (Phase 1 — 30 tests)
+## What's covered today (Phase 1 + 2 — 52 tests)
 
 - **Health check** — `apps/core/tests/tests.py`: DB/cache connectivity,
   correlation ID generation and echo.
@@ -49,15 +49,45 @@ email backend.
 - **Organizations** — per-tenant uniqueness of `Branch` names, and that
   the same name is allowed across different tenants (a direct,
   minimal tenant-isolation check at the data layer).
+- **Customers** (`apps/customers/tests/tests.py`) — idempotent creation
+  by `external_reference` for both `Customer` and `CustomerAccount`;
+  blank references never falsely deduplicate two different walk-in
+  customers; the same `external_reference` is allowed to exist
+  independently for two different tenants.
+- **Billing** (`apps/billing/tests/tests.py`) — idempotent bill creation
+  (a repeat call with the same `external_reference` returns the original
+  bill *unchanged*, even if the retried call's line items differ); the
+  status state machine (`DRAFT → ACTIVE` allowed, `DRAFT → PAID` rejected,
+  `CANCELLED` is terminal); portal-level tenant isolation for bills
+  (guessing another tenant's bill URL 404s; another tenant's bill never
+  appears in your bill list).
+- **Control numbers** (`apps/control_numbers/tests/tests.py`) — the core
+  pricing-model guarantee, directly: one creation followed by two more
+  requests for the same bill creates exactly one `ControlNumber` row and
+  reports `created=True` only the first time (mirrors build spec section
+  3's worked example); the `bill` `OneToOneField` rejects a second
+  control number for the same bill at the database level; a persistent
+  control number can be reissued after its predecessor is cancelled;
+  generated values never contain the customer's name or phone number.
+
+**Also verified manually, end-to-end over real HTTP** during Phase 2
+development (login → dashboard → create customer → create account →
+create bill → bill auto-requests a control number → explicitly
+re-requesting it returns the identical value, confirmed against both the
+rendered page and the database) — this is not part of the automated
+suite, but the same guarantee the automated tests check was independently
+confirmed through the actual portal, not just at the service-function
+level.
 
 ## Critical scenarios not yet testable (blocked on later phases)
 
-Everything from build spec section 34 that depends on billing/payments —
-control-number creation-fee-charged-once, duplicate webhook →
-no second payment, partial/full payment, provider timeout → `UNKNOWN`,
-reconciliation, reversal, refund, API rate limiting, webhook signature
-validation — cannot be tested because the code they'd test doesn't exist
-yet (Phase 2–6). Each of those phases' documentation
+Everything from build spec section 34 that depends on payments —
+control-number-creation-fee-charged-once (Phase 4's revenue engine reading
+the `created`/`reused` distinction Phase 2 already provides), duplicate
+webhook → no second payment, partial/full payment, provider timeout →
+`UNKNOWN`, reconciliation, reversal, refund, API rate limiting, webhook
+signature validation — cannot be tested because the code they'd test
+doesn't exist yet (Phase 3–6). Each of those phases' documentation
 ([PRICING_MODEL.md](PRICING_MODEL.md), [PAYMENT_LIFECYCLE.md](PAYMENT_LIFECYCLE.md))
 lists the specific tests that phase must ship with.
 

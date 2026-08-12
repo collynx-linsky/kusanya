@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Control numbers{% endblock %}
+{% block content %}
+<h1 class="h3 mb-4">Control numbers</h1>
+
+{% if control_numbers %}
+<div class="table-responsive">
+    <table class="table table-striped align-middle">
+        <thead>
+            <tr><th>Value</th><th>Scope</th><th>Status</th><th>For</th><th>Issued</th></tr>
+        </thead>
+        <tbody>
+            {% for cn in control_numbers %}
+            <tr>
+                <td class="font-monospace">{{ cn.value }}</td>
+                <td>{{ cn.get_scope_display }}</td>
+                <td>
+                    <span class="badge {% if cn.status == 'active' %}text-bg-success{% elif cn.status == 'expired' %}text-bg-secondary{% else %}text-bg-danger{% endif %}">
+                        {{ cn.get_status_display }}
+                    </span>
+                </td>
+                <td>
+                    {% if cn.bill %}
+                        <a href="{% url 'billing:detail' cn.bill.pk %}">{{ cn.bill.bill_number }}</a>
+                    {% elif cn.customer_account %}
+                        {{ cn.customer_account }}
+                    {% endif %}
+                </td>
+                <td>{{ cn.created_at|date:"Y-m-d H:i" }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<p class="text-body-secondary">No control numbers issued yet.</p>
+{% endif %}
+{% endblock %}

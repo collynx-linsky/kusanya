@@ -11,10 +11,12 @@ ledger. See [docs/PRODUCT_REQUIREMENTS.md](docs/PRODUCT_REQUIREMENTS.md)
 for the full product vision and [docs/](docs/) for the complete
 specification set.
 
-**Status: Phase 1 — Foundation.** Identity, multi-tenancy, RBAC, and audit
-logging are implemented. Billing, control numbers, payments, ledger,
-reconciliation, settlement, notifications, and the external API do not
-exist yet — they arrive in later phases (see
+**Status: Phase 1 + 2 complete.** Identity, multi-tenancy, RBAC, audit
+logging, customers/accounts, billing, and the persistent control-number
+engine (create-once, reuse-many, idempotent by `external_reference`) are
+implemented and tested against real PostgreSQL. Payments, the provider
+abstraction, the ledger, reconciliation, settlement, notifications, and
+the external API do not exist yet — they arrive in later phases (see
 [docs/PRODUCT_REQUIREMENTS.md](docs/PRODUCT_REQUIREMENTS.md#development-phases)).
 Nothing in this codebase claims to be a licensed payment institution; see
 [docs/compliance/REGULATORY_ASSUMPTIONS.md](docs/compliance/REGULATORY_ASSUMPTIONS.md).

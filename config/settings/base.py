@@ -62,6 +62,10 @@ LOCAL_APPS = [
     "apps.tenants",
     "apps.organizations",
     "apps.audit",
+    # Phase 2 — customer, account, billing, control number:
+    "apps.customers",
+    "apps.billing",
+    "apps.control_numbers",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
