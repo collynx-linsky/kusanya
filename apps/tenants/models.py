@@ -53,6 +53,18 @@ class Tenant(BaseModel):
 
     default_currency = models.CharField(max_length=3, default="TZS")
 
+    class FeeRefundPolicy(models.TextChoices):
+        CLAWBACK = "clawback", "Claw back platform fee on refund/reversal"
+        RETAIN = "retain", "Retain platform fee on refund/reversal"
+
+    # Build spec section 4: reversal/refund accounting treatment "must
+    # have configurable accounting treatment" — this is that
+    # configuration point. Read by apps.revenue.services; see
+    # docs/PRICING_MODEL.md#reversal--refund-accounting-treatment.
+    fee_refund_policy = models.CharField(
+        max_length=16, choices=FeeRefundPolicy.choices, default=FeeRefundPolicy.CLAWBACK
+    )
+
     # Sector-specific configuration lives here rather than as bespoke
     # columns — e.g. {"academic_year_label": "2026/2027"} for a school,
     # {"department_list": [...]} for a hospital. The core engine never

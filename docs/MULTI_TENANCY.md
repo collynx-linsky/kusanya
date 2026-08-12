@@ -23,12 +23,15 @@ not just conventionally followed:
    `apps.billing.RevenueSource`/`Bill`/`BillItem`,
    `apps.control_numbers.ControlNumber` (Phase 2); and
    `apps.payments.Payment`/`PaymentAllocation`,
-   `apps.webhooks.WebhookEndpoint`/`WebhookDelivery` (Phase 3). Every
-   future domain model follows the same pattern. Note the deliberate
-   exception: `apps.providers.PaymentProvider`/`PaymentChannel` are
-   platform-level catalog data (which providers KUSANYA integrates with),
-   not tenant data, and correctly do *not* inherit `TenantScopedModel` —
-   see `apps/providers/models.py`'s module docstring.
+   `apps.webhooks.WebhookEndpoint`/`WebhookDelivery` (Phase 3); and
+   `apps.ledger.LedgerEntry`, `apps.revenue.RevenueEvent`,
+   `apps.reconciliation.ReconciliationRun`/`ReconciliationException`,
+   `apps.settlement.SettlementBatch` (Phase 4). Every future domain model
+   follows the same pattern. Note the deliberate exception:
+   `apps.providers.PaymentProvider`/`PaymentChannel` are platform-level
+   catalog data (which providers KUSANYA integrates with), not tenant
+   data, and correctly do *not* inherit `TenantScopedModel` — see
+   `apps/providers/models.py`'s module docstring.
 
 2. **`request.tenant` is resolved from membership, not from client
    input.** `apps.tenants.middleware.TenantResolutionMiddleware` looks up
@@ -63,18 +66,24 @@ authenticated credential, never trust a client-supplied tenant ID), just
 via an API key/secret instead of a session. Row-level tenant filtering at
 the queryset layer (e.g. a manager that automatically scopes
 `Model.objects` to `request.tenant`) is still not implemented — every
-portal view across Phases 2 and 3 (`apps.customers.views`,
+portal view across Phases 2–4 (`apps.customers.views`,
 `apps.billing.views`, `apps.control_numbers.views`, `apps.payments.views`,
-`apps.webhooks.views`) filters explicitly with
-`.filter(tenant=request.tenant)`/`get_object_or_404(..., tenant=request.tenant)`
-rather than an automatic manager. This is directly what the tenant-
-isolation tests across those apps exercise (e.g.
-`TestBillPortalTenantIsolation`: a guessed URL for another tenant's bill
-404s, another tenant's bill never appears in your bill list). An
-automatic tenant-scoping manager would reduce the chance of a future view
-forgetting this filter — worth introducing before Phase 4 adds
-reconciliation/settlement views, rather than each app continuing to
-repeat the same explicit filter by convention.
+`apps.webhooks.views`, `apps.ledger.views`, `apps.revenue.views`,
+`apps.reconciliation.views`, `apps.settlement.views`) filters explicitly
+with `.filter(tenant=request.tenant)`/
+`get_object_or_404(..., tenant=request.tenant)` rather than an automatic
+manager. This is directly what the tenant-isolation tests across those
+apps exercise (e.g. `TestBillPortalTenantIsolation`: a guessed URL for
+another tenant's bill 404s, another tenant's bill never appears in your
+bill list). An automatic tenant-scoping manager would reduce the chance
+of a future view forgetting this filter — worth introducing before Phase
+5/6 adds more views, rather than each app continuing to repeat the same
+explicit filter by convention. Settlement's platform-only views
+(`generate_batch`, `mark_completed`) are the one deliberate exception —
+they operate across tenants by design (a platform admin chooses which
+tenant to settle), gated by `require_platform_role` instead of
+tenant-membership, which is the correct boundary for an action a tenant
+user should never be able to trigger for themselves.
 
 ## Tenant lifecycle
 

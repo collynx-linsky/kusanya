@@ -17,6 +17,7 @@ from django.utils import timezone
 
 from apps.audit.services import record_audit_event
 from apps.control_numbers.models import ControlNumber, ControlNumberScope, ControlNumberStatus
+from apps.revenue.services import record_control_number_created, record_control_number_reused
 
 _MAX_GENERATION_ATTEMPTS = 5
 
@@ -42,6 +43,7 @@ def get_or_create_for_bill(*, tenant, bill, actor=None, expires_at=None):
         record_audit_event(
             action="control_number.reused", actor=actor, tenant=tenant, target=existing
         )
+        record_control_number_reused(existing, actor=actor)
         return existing, False
 
     for _attempt in range(_MAX_GENERATION_ATTEMPTS):
@@ -61,11 +63,16 @@ def get_or_create_for_bill(*, tenant, bill, actor=None, expires_at=None):
                     tenant=tenant,
                     target=control_number,
                 )
+                record_control_number_created(control_number, actor=actor)
             return control_number, True
         except IntegrityError:
             # Either a `value` collision (retry with a fresh value) or a
             # concurrent request for the same bill won the race on the
             # bill OneToOneField (in which case return what it created).
+            # Not recorded as a "reused" revenue event here: the winning
+            # request already recorded exactly one CONTROL_NUMBER_CREATED
+            # event for this control number, which is the correct total
+            # regardless of how many concurrent losers there were.
             existing = ControlNumber.objects.filter(bill=bill).first()
             if existing is not None:
                 return existing, False
@@ -85,6 +92,7 @@ def get_or_create_for_account(*, tenant, customer_account, actor=None, expires_a
         record_audit_event(
             action="control_number.reused", actor=actor, tenant=tenant, target=existing
         )
+        record_control_number_reused(existing, actor=actor)
         return existing, False
 
     for _attempt in range(_MAX_GENERATION_ATTEMPTS):
@@ -104,6 +112,7 @@ def get_or_create_for_account(*, tenant, customer_account, actor=None, expires_a
                     tenant=tenant,
                     target=control_number,
                 )
+                record_control_number_created(control_number, actor=actor)
             return control_number, True
         except IntegrityError:
             existing = ControlNumber.objects.filter(

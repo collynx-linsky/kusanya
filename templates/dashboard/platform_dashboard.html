@@ -2,11 +2,14 @@
 {% block title %}Platform dashboard{% endblock %}
 {% block content %}
 <h1 class="h3 mb-4">Platform dashboard</h1>
-<p class="text-body-secondary">
-    Phase 1 foundation — figures below are real counts from the database.
-    Collections/revenue metrics arrive with the billing and payment domains
-    (Phase 2–4).
-</p>
+
+{% if open_reconciliation_exceptions %}
+<div class="alert alert-warning">
+    <strong>{{ open_reconciliation_exceptions }} open reconciliation exception(s)</strong> across all institutions.
+</div>
+{% endif %}
+
+<h2 class="h6 text-uppercase text-body-secondary">Institutions</h2>
 <div class="row g-3">
     <div class="col-6 col-lg-3">
         <div class="card shadow-sm h-100">
@@ -42,13 +45,47 @@
     </div>
 </div>
 
+<h2 class="h6 text-uppercase text-body-secondary mt-4">Collections &amp; revenue</h2>
+<div class="row g-3">
+    <div class="col-6 col-lg-3">
+        <a href="{% url 'revenue:platform-dashboard' %}" class="text-decoration-none text-body">
+        <div class="card shadow-sm h-100">
+            <div class="card-body">
+                <div class="text-body-secondary small text-uppercase">Platform revenue</div>
+                <div class="display-6">{{ total_platform_revenue }}</div>
+            </div>
+        </div>
+        </a>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="card shadow-sm h-100">
+            <div class="card-body">
+                <div class="text-body-secondary small text-uppercase">Successful payments</div>
+                <div class="display-6">{{ successful_payment_count }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <a href="{% url 'settlement:platform-list' %}" class="text-decoration-none text-body">
+        <div class="card shadow-sm h-100">
+            <div class="card-body">
+                <div class="text-body-secondary small text-uppercase">Settlement batches</div>
+                <div class="display-6">→</div>
+            </div>
+        </div>
+        </a>
+    </div>
+</div>
+
 <div class="mt-4">
     <a href="{% url 'tenants:pending-tenants' %}" class="btn btn-primary">Review pending institutions</a>
 </div>
 
 <div class="alert alert-secondary mt-4">
-    <strong>Not yet implemented:</strong> billing, control numbers, payments,
-    revenue, reconciliation and settlement dashboards. These are explicitly
-    out of scope for Phase 1 — see docs/PRODUCT_REQUIREMENTS.md.
+    <strong>Not yet implemented:</strong> notifications and receipts
+    (Phase 5), the external API for ERP integrations (Phase 6). Billing,
+    payments, the ledger, revenue, reconciliation, and settlement are all
+    fully functional — against the MOCK/SANDBOX provider only. See
+    docs/PRODUCT_REQUIREMENTS.md.
 </div>
 {% endblock %}

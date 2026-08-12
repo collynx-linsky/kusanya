@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}{{ batch.reference }}{% endblock %}
+{% block content %}
+<h1 class="h3 mb-1">{{ batch.reference }}</h1>
+<p class="text-body-secondary">
+    {{ batch.period_start|date:"Y-m-d" }} – {{ batch.period_end|date:"Y-m-d" }} ·
+    <span class="badge {% if batch.status == 'completed' %}text-bg-success{% elif batch.status == 'exception' %}text-bg-danger{% else %}text-bg-warning{% endif %}">
+        {{ batch.get_status_display }}
+    </span>
+</p>
+
+<div class="card shadow-sm" style="max-width: 480px;">
+    <table class="table mb-0">
+        <tbody>
+            <tr><th>Gross amount</th><td>{{ batch.gross_amount }} {{ batch.currency }}</td></tr>
+            <tr><th>Platform fees</th><td>-{{ batch.platform_fee_total }} {{ batch.currency }}</td></tr>
+            <tr><th>Provider fees</th><td>-{{ batch.provider_fee_total }} {{ batch.currency }}</td></tr>
+            <tr class="fw-bold"><th>Net amount</th><td>{{ batch.net_amount }} {{ batch.currency }}</td></tr>
+            <tr><th>Payments included</th><td>{{ batch.payments.count }}</td></tr>
+            {% if batch.settlement_date %}
+            <tr><th>Settled</th><td>{{ batch.settlement_date|date:"Y-m-d H:i" }}</td></tr>
+            <tr><th>Provider reference</th><td>{{ batch.external_settlement_reference }}</td></tr>
+            {% endif %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

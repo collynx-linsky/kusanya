@@ -29,10 +29,25 @@
                     <li class="nav-item">
                         <a class="nav-link" href="{% url 'webhooks:list' %}">Webhooks</a>
                     </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">Finance</a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{% url 'ledger:list' %}">Ledger</a></li>
+                            <li><a class="dropdown-item" href="{% url 'revenue:summary' %}">Revenue</a></li>
+                            <li><a class="dropdown-item" href="{% url 'reconciliation:list' %}">Reconciliation</a></li>
+                            <li><a class="dropdown-item" href="{% url 'settlement:list' %}">Settlements</a></li>
+                        </ul>
+                    </li>
                     {% endif %}
                     {% if user.is_staff %}
                     <li class="nav-item">
                         <a class="nav-link" href="{% url 'tenants:pending-tenants' %}">Pending institutions</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'revenue:platform-dashboard' %}">Platform revenue</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'settlement:platform-list' %}">Settlements</a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="/admin/">Admin</a>

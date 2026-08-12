@@ -20,8 +20,15 @@ from apps.billing.models import Bill, BillStatus
 from apps.payments.models import Payment, PaymentAllocation, PaymentCallbackEvent, PaymentStatus
 from apps.providers.base import InvalidCallbackSignatureError, ProviderError, ProviderOutcome, ProviderTimeoutError
 from apps.providers.registry import get_adapter
+from apps.revenue.services import (
+    record_payment_duplicate,
+    record_payment_failed,
+    record_payment_refunded,
+    record_payment_reversed,
+    record_payment_successful,
+)
 
-_OUTCOME_TO_STATUS = {
+OUTCOME_TO_STATUS = {
     ProviderOutcome.SUCCESSFUL: PaymentStatus.SUCCESSFUL,
     ProviderOutcome.FAILED: PaymentStatus.FAILED,
     ProviderOutcome.PENDING: PaymentStatus.PENDING,
@@ -88,6 +95,7 @@ def initiate_payment(
         record_audit_event(
             action="payment.failed", actor=actor, tenant=tenant, target=payment, metadata={"reason": str(exc)}
         )
+        record_payment_failed(payment, actor=actor)
         return payment
 
     payment.provider_reference = result.provider_reference
@@ -167,6 +175,8 @@ def process_callback(*, provider, raw_payload: bytes, headers: dict, actor=None)
             tenant=original.payment.tenant if original and original.payment else None,
             target=dup,
         )
+        if original is not None and original.payment is not None:
+            record_payment_duplicate(original.payment, actor=actor)
         return dup
 
     payment = Payment.objects.filter(provider_reference=parsed.provider_reference).first()
@@ -197,6 +207,7 @@ def refund_payment(payment: Payment, *, amount: Decimal | None = None, actor=Non
             action="payment.refunded", actor=actor, tenant=payment.tenant, target=payment,
             metadata={"amount": str(refund_amount)},
         )
+        record_payment_refunded(payment, actor=actor)
         _dispatch(payment, "payment.refunded")
     return payment
 
@@ -212,6 +223,7 @@ def reverse_payment(payment: Payment, *, actor=None) -> Payment:
     if result.outcome == ProviderOutcome.SUCCESSFUL:
         payment.transition_to(PaymentStatus.REVERSED)
         record_audit_event(action="payment.reversed", actor=actor, tenant=payment.tenant, target=payment)
+        record_payment_reversed(payment, actor=actor)
         _dispatch(payment, "payment.reversed")
     return payment
 
@@ -223,7 +235,7 @@ def _apply_outcome(payment: Payment, outcome: ProviderOutcome, *, actor=None) ->
             record_audit_event(action="payment.unknown", actor=actor, tenant=payment.tenant, target=payment)
         return
 
-    target = _OUTCOME_TO_STATUS[outcome]
+    target = OUTCOME_TO_STATUS[outcome]
     if payment.status == target:
         # Idempotent no-op: this outcome was already applied (e.g. a
         # query_payment() call confirming a status we already recorded).
@@ -234,23 +246,56 @@ def _apply_outcome(payment: Payment, outcome: ProviderOutcome, *, actor=None) ->
 
     if target == PaymentStatus.SUCCESSFUL:
         record_audit_event(action="payment.successful", actor=actor, tenant=payment.tenant, target=payment)
+        _post_settlement_ledger_entries(payment)
+        record_payment_successful(payment, actor=actor)  # posts the platform's own fee entry
         _allocate_to_bill(payment)
         _dispatch(payment, "payment.successful")
     elif target == PaymentStatus.FAILED:
         record_audit_event(action="payment.failed", actor=actor, tenant=payment.tenant, target=payment)
+        record_payment_failed(payment, actor=actor)
         _dispatch(payment, "payment.failed")
     elif target == PaymentStatus.PENDING:
         record_audit_event(action="payment.pending", actor=actor, tenant=payment.tenant, target=payment)
         _dispatch(payment, "payment.pending")
 
 
+def _post_settlement_ledger_entries(payment: Payment) -> None:
+    """The two entries build spec section 2/16 requires be separately
+    identifiable for every successful payment: what the institution is
+    owed (the full payment amount — KUSANYA's fee is a separate charge,
+    not a deduction from it) and the gross amount received. The
+    platform's own fee entry is posted separately by
+    apps.revenue.services.record_payment_successful. See
+    docs/MONEY_FLOW.md for the worked example this mirrors exactly."""
+    from apps.ledger.models import LedgerAccount, LedgerEntryType
+    from apps.ledger.services import post_entry
+
+    post_entry(
+        tenant=payment.tenant,
+        entry_type=LedgerEntryType.PAYMENT_RECEIVED,
+        account=LedgerAccount.CUSTOMER,
+        amount=payment.amount,
+        currency=payment.currency,
+        reference=payment.merchant_reference,
+        source=payment,
+    )
+    post_entry(
+        tenant=payment.tenant,
+        entry_type=LedgerEntryType.INSTITUTION_ENTITLEMENT,
+        account=LedgerAccount.INSTITUTION,
+        amount=payment.amount,
+        currency=payment.currency,
+        reference=payment.merchant_reference,
+        source=payment,
+    )
+
+
 def _allocate_to_bill(payment: Payment) -> None:
     """Only handles the simple case: a one-time (bill-bound) control
     number, allocating the full payment to that one bill. Persistent
     (account-bound) control numbers spanning multiple bills need
-    allocation logic (e.g. oldest-bill-first) that belongs to Phase 4's
-    ledger, not the payment orchestrator — see
-    docs/PAYMENT_LIFECYCLE.md."""
+    allocation logic (e.g. oldest-bill-first) that belongs to the ledger
+    proper — not built yet, tracked in docs/PAYMENT_LIFECYCLE.md."""
     bill = payment.control_number.bill
     if bill is None:
         return

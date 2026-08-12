@@ -76,6 +76,13 @@ class Payment(TenantScopedModel):
     raw_provider_response = models.JSONField(default=dict, blank=True)
     metadata = models.JSONField(default=dict, blank=True)
 
+    # Set once this payment is included in a settlement batch (Phase 4) —
+    # a payment can be settled at most once; apps.settlement.services
+    # only ever includes payments where this is still null.
+    settlement_batch = models.ForeignKey(
+        "settlement.SettlementBatch", null=True, blank=True, on_delete=models.SET_NULL, related_name="payments"
+    )
+
     class Meta:
         ordering = ["-initiated_at"]
         constraints = [

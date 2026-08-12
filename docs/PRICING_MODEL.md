@@ -1,35 +1,37 @@
 # Pricing Model
 
-**Status: not yet implemented** (Phase 4 — Revenue engine). This is the
-exact rule set that implementation must satisfy, including the tests that
-must pass before it can be considered done.
+**Status: implemented (Phase 4).** Code: `apps/revenue/`. The fee
+schedule is defined in exactly one place —
+`apps.revenue.services.CONTROL_NUMBER_CREATION_FEE` and
+`PAYMENT_SUCCESS_FEE` — never scattered across billing/payment/
+control-number code (build spec principle 10). This document records the
+rule set and confirms it's satisfied, including by the build spec's own
+worked example, reproduced exactly.
 
-## Fee schedule
+## Fee schedule — implemented as `apps.revenue.models.RevenueEventType`
 
 | Event | Fee |
 |---|---|
 | `CONTROL_NUMBER_CREATED` (genuinely new) | TZS 50 |
-| `EXISTING_CONTROL_NUMBER_RETRIEVED` | TZS 0 |
 | `CONTROL_NUMBER_REUSED` | TZS 0 |
 | `PAYMENT_SUCCESSFUL` | TZS 50 |
 | `PAYMENT_FAILED` | TZS 0 |
 | `PAYMENT_REVERSED` | see "Reversal/refund" below |
 | `PAYMENT_REFUNDED` | see "Reversal/refund" below |
-| `PAYMENT_DUPLICATE` (duplicate webhook / duplicate payment) | TZS 0 |
-| `CANCELLED_BILL` | no payment fee |
+| `PAYMENT_DUPLICATE` (duplicate webhook/callback) | TZS 0 |
+| Cancelled bill | no payment fee is possible — a cancelled bill's control number was either never paid, or cancellation itself doesn't reverse a payment |
 
-## The control-number-reuse rule, precisely
+Every row above — including the zero-fee ones — is recorded as a
+`RevenueEvent`, not just the charged ones; see
+[LEDGER_SPEC.md](LEDGER_SPEC.md) for why (queryable metrics like "how
+often are control numbers reused" without needing a fee).
 
-A control number's creation fee is charged **exactly once**, at the
-moment a genuinely new control number is created for an account/bill. Any
-subsequent request that resolves to the *same* control number — because
-an ERP asked for "the control number for this bill" again, because a
-customer reloaded a payment page, because of a retried API call — returns
-the existing control number and charges nothing.
+## The control-number-reuse rule — implemented and verified exactly
 
-**Worked example** (build spec section 3):
+**Worked example** (build spec section 3), reproduced against real
+PostgreSQL during Phase 4 development:
 
-```
+```text
 Request 1: create control number         → new                → TZS 50
 Request 2: request same control number   → existing returned  → TZS 0
 Request 3: request same control number   → existing returned  → TZS 0
@@ -37,39 +39,64 @@ Payment 1 successful                     →                     → TZS 50
 Payment 2 successful (same control no.)  →                     → TZS 50
 ```
 
-One new control number + 2 successful payments = TZS 50 + TZS 50 + TZS 50
-= **TZS 150** platform gross revenue from this example. (The build spec's
-own five-payment example: TZS 50 + 5×TZS 50 = **TZS 300**.)
+The build spec's own five-payment variant — one new control number + 5
+successful payments = TZS 50 + 5×TZS 50 = **TZS 300** — is exactly what
+`apps/revenue/tests/tests.py::TestBuildSpecWorkedExample` asserts, and
+what a live run against real PostgreSQL produced: `TOTAL PLATFORM
+REVENUE: 300.00`.
 
-**Implementation requirement:** "is this control number new" must be
-determined by the control-number service's own idempotency check (see
-[CONTROL_NUMBER_SPEC.md](CONTROL_NUMBER_SPEC.md)), not inferred after the
-fact from whether a fee was already charged — the fee event is a
-*consequence* of the creation decision, not the other way around.
+**Implemented as:** `apps.control_numbers.services.get_or_create_for_bill`/
+`_for_account` call `apps.revenue.services.record_control_number_created`
+only on the branch where a control number was genuinely just created,
+and `record_control_number_reused` (TZS 0, no ledger entry) on every
+retrieval-of-existing branch — the fee event is a direct consequence of
+that service's own idempotency decision, never inferred after the fact.
 
-## Reversal / refund accounting treatment
+## Reversal / refund accounting treatment — implemented, configurable per tenant
 
-Reversing or refunding a payment must **never** simply delete the
-`PAYMENT_SUCCESSFUL` revenue event — build spec section 4 is explicit:
-"Do not simply delete revenue records... Use immutable financial events
-and compensating entries." The accounting treatment (does KUSANYA's TZS
-50 payment fee get clawed back on refund? on reversal? partially?) is
-configurable per tenant and must be decided as a product/finance question
-before Phase 4 implementation, not assumed by this document. Whatever is
-decided, it is implemented as a compensating `LedgerEntry`, never a
-mutation or deletion of the original event.
+`Tenant.fee_refund_policy` (`CLAWBACK` default, or `RETAIN`) — build spec
+section 4's required configurability point, not a hard-coded choice.
+`apps.revenue.services._compensate()`:
+
+- **`CLAWBACK`** (default): posts a `PAYMENT_REVERSED`/`PAYMENT_REFUNDED`
+  `RevenueEvent` for `-50` (negating the original fee) plus a
+  compensating `LedgerEntry` linked via `related_entry` — the original
+  `PAYMENT_SUCCESSFUL` event and its ledger entry are **never** touched
+  or deleted, exactly per build spec section 4's "use immutable financial
+  events and compensating entries." Net revenue from that payment becomes
+  zero, but both the +50 and −50 events remain visible forever.
+- **`RETAIN`**: posts the same event type at amount 0 — the fee stays
+  charged, recorded for audit completeness, no ledger entry since there's
+  no financial effect to record.
+
+Both branches tested explicitly:
+`TestReversalRefundAccountingTreatment::test_clawback_policy_creates_negative_compensating_event`
+and `test_retain_policy_keeps_the_fee_on_refund`.
+
+## Immutability
+
+`RevenueEvent.save()`/`.delete()` both raise
+`RevenueEventImmutableError` after creation — same enforcement pattern as
+`AuditLog` (ADR-006) and `LedgerEntry`. Tested.
 
 ## Currency
 
-Fees above are denominated in TZS, the platform default (see
-[MONEY_FLOW.md](MONEY_FLOW.md)). Tenants using another currency need an
-explicit fee schedule for that currency — the architecture does not
-assume a fixed TZS-to-other-currency conversion for fee purposes.
+Fees are denominated in each tenant's `default_currency` (TZS by default
+— see [MONEY_FLOW.md](MONEY_FLOW.md)). No TZS-to-other-currency
+conversion is assumed or implemented; a tenant using a different currency
+would need its own fee schedule, which isn't built (every tenant in
+Phase 4 uses the same fee amounts regardless of currency — a gap worth
+revisiting before onboarding a non-TZS tenant with real payments).
 
-## Tests this implementation must pass (Phase 4)
+## Tests — build spec section 34's fee-related scenarios, all passing
 
-Mirrors build spec section 34's critical scenarios: create control
-number once → fee charged once; request same control number three times →
-fee charged once total; five successful payments on one control number →
-five payment fees; failed payment → no fee; duplicate webhook for the
-same payment → no second fee; cancelled bill → no payment fee.
+Create control number once → fee charged once ✅; request same control
+number three times → fee charged once total ✅; five successful payments
+on one control number → five payment fees (TZS 250) ✅; failed payment →
+no fee ✅; duplicate webhook for the same payment → no second fee ✅
+(tested at both the payment-callback level and confirmed the revenue
+event count matches); reversal/refund → compensating event, original
+never deleted ✅, both accounting-treatment policies tested. All 22 new
+Phase 4 tests across `apps/ledger/tests/`, `apps/revenue/tests/`,
+`apps/reconciliation/tests/`, `apps/settlement/tests/` pass (109/109
+total across the whole suite), against real PostgreSQL.

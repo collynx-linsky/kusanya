@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Settlements{% endblock %}
+{% block content %}
+<h1 class="h3 mb-1">Settlements</h1>
+<p class="text-body-secondary">
+    Batches KUSANYA has recorded on your behalf. Generation and
+    completion are platform-controlled — see docs/SETTLEMENT_SPEC.md for
+    why.
+</p>
+
+{% if batches %}
+<div class="table-responsive">
+    <table class="table table-striped align-middle">
+        <thead><tr><th>Reference</th><th>Period</th><th>Gross</th><th>Net</th><th>Status</th></tr></thead>
+        <tbody>
+            {% for batch in batches %}
+            <tr>
+                <td><a href="{% url 'settlement:detail' batch.pk %}">{{ batch.reference }}</a></td>
+                <td>{{ batch.period_start|date:"Y-m-d" }} – {{ batch.period_end|date:"Y-m-d" }}</td>
+                <td>{{ batch.gross_amount }} {{ batch.currency }}</td>
+                <td>{{ batch.net_amount }} {{ batch.currency }}</td>
+                <td>
+                    <span class="badge {% if batch.status == 'completed' %}text-bg-success{% elif batch.status == 'exception' %}text-bg-danger{% else %}text-bg-warning{% endif %}">
+                        {{ batch.get_status_display }}
+                    </span>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<p class="text-body-secondary">No settlement batches yet.</p>
+{% endif %}
+{% endblock %}

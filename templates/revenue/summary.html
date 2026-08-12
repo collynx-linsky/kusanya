@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Revenue{% endblock %}
+{% block content %}
+<h1 class="h3 mb-1">Platform revenue from your institution</h1>
+<p class="text-body-secondary">
+    What KUSANYA has charged your institution, broken down by event —
+    including zero-fee events (reused control numbers, failed/duplicate
+    payments) for full visibility.
+</p>
+
+<div class="card shadow-sm mb-4" style="max-width: 320px;">
+    <div class="card-body">
+        <div class="text-body-secondary small text-uppercase">Total charged</div>
+        <div class="display-6">{{ total_revenue }}</div>
+    </div>
+</div>
+
+<div class="table-responsive">
+    <table class="table table-striped align-middle">
+        <thead><tr><th>Event</th><th>Count</th><th>Total amount</th></tr></thead>
+        <tbody>
+            {% for row in breakdown %}
+            <tr>
+                <td>{{ row.event_type }}</td>
+                <td>{{ row.event_count }}</td>
+                <td>{{ row.total_amount }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="3" class="text-body-secondary">No revenue events yet.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

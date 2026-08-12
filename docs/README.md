@@ -40,7 +40,7 @@ and reporting. It is explicitly **not** a school-specific system — see
 | [COMPLIANCE_ASSUMPTIONS.md](COMPLIANCE_ASSUMPTIONS.md) | Summary — see compliance/ for detail |
 | [compliance/REGULATORY_ASSUMPTIONS.md](compliance/REGULATORY_ASSUMPTIONS.md) | Full regulatory-boundary documentation |
 
-## What exists today (Phase 1 + 2 + 3)
+## What exists today (Phase 1 + 2 + 3 + 4)
 
 **Phase 1:** identity (`apps.users`), authentication (`apps.accounts`),
 multi-tenancy and RBAC (`apps.tenants`), organizational sub-structure
@@ -57,14 +57,26 @@ clearly-labeled MOCK/SANDBOX adapter (`apps.providers`); the payment
 domain with a fully enforced state machine, the UNKNOWN-on-timeout rule,
 and idempotent initiation/callback handling (`apps.payments`); and
 outbound webhook delivery with HMAC signing, exponential-backoff retry,
-and dead-lettering (`apps.webhooks`). 87 automated tests pass against
-real PostgreSQL; the control-number reuse guarantee (Phase 2) and the
-full payment→webhook pipeline (Phase 3, including a real Celery worker
-delivering a real signed HTTP POST) were additionally verified manually,
-end to end, outside the test suite.
+and dead-lettering (`apps.webhooks`).
 
-The ledger, reconciliation, settlement, notifications, receipts, reports,
-and the external API do not exist yet (Phase 4–6). Every document in
-this folder describes the **target** design for its domain; where that
-domain isn't built yet, the document says so rather than implying it's
-live.
+**Phase 4:** the immutable financial ledger (`apps.ledger`); the revenue
+engine (`apps.revenue`) — the TZS 50 control-number and payment fees are
+now actually charged, exactly once each, with the build spec's own
+worked example (one control number + five payments = TZS 300) verified
+against real PostgreSQL; reconciliation (`apps.reconciliation`), which
+resolves stuck `UNKNOWN` payments and flags provider/internal status
+drift without ever silently correcting a settled payment; and settlement
+batching (`apps.settlement`), with database-enforced double-settlement
+prevention.
+
+109 automated tests pass against real PostgreSQL. Beyond the test suite,
+manually verified end to end against real PostgreSQL and (for Phase 3)
+a real Celery worker: the control-number reuse guarantee, the full
+payment→webhook pipeline with independently-verified HMAC signatures,
+the exact TZS 300 worked example, and settlement generation/completion/
+double-settle-prevention/reconciliation together in one live run.
+
+Notifications, receipts, reports, and the external API do not exist yet
+(Phase 5–6). Every document in this folder describes the **target**
+design for its domain; where that domain isn't built yet, the document
+says so rather than implying it's live.

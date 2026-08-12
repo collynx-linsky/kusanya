@@ -21,6 +21,10 @@ urlpatterns = [
     path("control-numbers/", include("apps.control_numbers.urls")),
     path("payments/", include("apps.payments.urls")),
     path("webhooks/", include("apps.webhooks.urls")),
+    path("ledger/", include("apps.ledger.urls")),
+    path("revenue/", include("apps.revenue.urls")),
+    path("reconciliation/", include("apps.reconciliation.urls")),
+    path("settlement/", include("apps.settlement.urls")),
 ]
 
 if settings.DEBUG:

@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Settlement batches{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0">Settlement batches</h1>
+    <a href="{% url 'settlement:generate' %}" class="btn btn-primary">Generate batch</a>
+</div>
+
+{% if batches %}
+<div class="table-responsive">
+    <table class="table table-striped align-middle">
+        <thead><tr><th>Reference</th><th>Institution</th><th>Net</th><th>Status</th><th></th></tr></thead>
+        <tbody>
+            {% for batch in batches %}
+            <tr>
+                <td>{{ batch.reference }}</td>
+                <td>{{ batch.tenant.name }}</td>
+                <td>{{ batch.net_amount }} {{ batch.currency }}</td>
+                <td>
+                    <span class="badge {% if batch.status == 'completed' %}text-bg-success{% elif batch.status == 'exception' %}text-bg-danger{% else %}text-bg-warning{% endif %}">
+                        {{ batch.get_status_display }}
+                    </span>
+                </td>
+                <td>
+                    {% if batch.status == 'pending' %}
+                    <a href="{% url 'settlement:mark-completed' batch.pk %}" class="btn btn-sm btn-outline-success">Mark completed</a>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<p class="text-body-secondary">No settlement batches yet.</p>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Ledger{% endblock %}
+{% block content %}
+<h1 class="h3 mb-1">Ledger</h1>
+<p class="text-body-secondary">
+    Every financial event, immutable — corrections appear as new
+    compensating entries, never edits to the original. Showing the most
+    recent 200.
+</p>
+
+<form method="get" class="mb-3 d-flex gap-2">
+    <select name="entry_type" class="form-select w-auto" onchange="this.form.submit()">
+        <option value="">All types</option>
+        {% for value, label in entry_types %}
+        <option value="{{ value }}" {% if request.GET.entry_type == value %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+    </select>
+</form>
+
+{% if entries %}
+<div class="table-responsive">
+    <table class="table table-striped align-middle">
+        <thead>
+            <tr><th>Date</th><th>Type</th><th>Account</th><th>Amount</th><th>Reference</th></tr>
+        </thead>
+        <tbody>
+            {% for entry in entries %}
+            <tr>
+                <td>{{ entry.created_at|date:"Y-m-d H:i" }}</td>
+                <td>{{ entry.get_entry_type_display }}</td>
+                <td>{{ entry.get_account_display }}</td>
+                <td class="{% if entry.amount < 0 %}text-danger{% endif %}">{{ entry.amount }} {{ entry.currency }}</td>
+                <td class="font-monospace small">{{ entry.reference|default:"—" }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<p class="text-body-secondary">No ledger entries yet.</p>
+{% endif %}
+{% endblock %}

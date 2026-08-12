@@ -7,7 +7,37 @@
     Status: <span class="badge {% if tenant.status == 'active' %}text-bg-success{% elif tenant.status == 'pending' %}text-bg-warning{% else %}text-bg-secondary{% endif %}">{{ tenant.get_status_display }}</span>
 </p>
 
-<div class="row g-3 mt-2">
+{% if open_exception_count %}
+<div class="alert alert-warning">
+    <strong>{{ open_exception_count }} open reconciliation exception(s)</strong> —
+    <a href="{% url 'reconciliation:list' %}">review them</a>.
+</div>
+{% endif %}
+
+<h2 class="h6 text-uppercase text-body-secondary mt-4">Collections</h2>
+<div class="row g-3">
+    <div class="col-6 col-lg-3">
+        <div class="card shadow-sm h-100">
+            <div class="card-body">
+                <div class="text-body-secondary small text-uppercase">Gross collected</div>
+                <div class="display-6">{{ gross_collected }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <a href="{% url 'revenue:summary' %}" class="text-decoration-none text-body">
+        <div class="card shadow-sm h-100">
+            <div class="card-body">
+                <div class="text-body-secondary small text-uppercase">Platform fees paid</div>
+                <div class="display-6">{{ platform_fees_paid }}</div>
+            </div>
+        </div>
+        </a>
+    </div>
+</div>
+
+<h2 class="h6 text-uppercase text-body-secondary mt-4">Records</h2>
+<div class="row g-3">
     <div class="col-6 col-lg-3">
         <div class="card shadow-sm h-100">
             <div class="card-body">
@@ -49,9 +79,11 @@
 </div>
 
 <div class="alert alert-secondary mt-4">
-    <strong>Not yet implemented:</strong> payments, receipts, balances,
-    reconciliation and reports — a bill and its control number can be
-    created, but nothing can be paid against it yet. See
-    docs/PRODUCT_REQUIREMENTS.md for the phased roadmap.
+    <strong>Not yet implemented:</strong> receipts and notifications
+    (Phase 5), and the external API for ERP integrations (Phase 6).
+    Billing, payments, the ledger, revenue, reconciliation, and
+    settlement are all fully functional — against the MOCK/SANDBOX
+    provider only. See docs/PRODUCT_REQUIREMENTS.md for the phased
+    roadmap.
 </div>
 {% endblock %}

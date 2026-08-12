@@ -23,7 +23,7 @@ convenient for tests).
 and their effects are directly assertable), locmem cache, and locmem
 email backend.
 
-## What's covered today (Phase 1 + 2 + 3 — 87 tests)
+## What's covered today (Phase 1 + 2 + 3 + 4 — 109 tests)
 
 - **Health check** — `apps/core/tests/tests.py`: DB/cache connectivity,
   correlation ID generation and echo.
@@ -93,6 +93,36 @@ email backend.
   delivery per active, subscribed, *same-tenant* endpoint; delivery
   execution success/non-2xx/network-error handling; exhausting
   `max_attempts` moves a delivery to `DEAD_LETTER`.
+- **Ledger** (`apps/ledger/tests/tests.py`) — `.save()`/`.delete()` on an
+  existing entry both raise; a correction posts a new, linked
+  compensating entry while the original is provably untouched.
+- **Revenue** (`apps/revenue/tests/tests.py`) — **the build spec's own
+  worked example, verbatim**
+  (`TestBuildSpecWorkedExample::test_one_control_number_five_payments_equals_300`):
+  one control-number creation + five successful payments totals exactly
+  TZS 300, split correctly into TZS 50 (creation) + TZS 250 (5×TZS 50
+  payments); creation charges the fee exactly once across three requests,
+  with the reused requests posting TZS 0 and no ledger entry; failed
+  payments and duplicate callbacks charge nothing; both reversal/refund
+  accounting-treatment policies (`CLAWBACK`/`RETAIN`) produce the correct
+  compensating event without ever deleting the original; `RevenueEvent`
+  immutability.
+- **Reconciliation** (`apps/reconciliation/tests/tests.py`) — a run
+  resolves a stale `UNKNOWN` payment via the same `query_payment()` path
+  Phase 3 already tests; a payment stuck `UNKNOWN` with no provider
+  record stays `UNKNOWN` and opens a `STUCK_UNKNOWN` exception; **drift
+  detection**: a payment's provider-side record is deliberately altered
+  after the fact, and reconciliation flags a `STATUS_MISMATCH` exception
+  *without* changing the already-settled `Payment.status`; a clean match
+  is counted, not flagged; exception resolution records who/when/why.
+- **Settlement** (`apps/settlement/tests/tests.py`) — a batch correctly
+  aggregates successful payments' gross amount, platform fees (via
+  `RevenueEvent`), and computes net; failed/pending payments are
+  excluded; **a payment is never settled twice** — generating a batch
+  for the same period a second time includes zero payments, because the
+  first batch already claimed them; marking a batch completed records
+  the external reference and dispatches a `settlement.completed`
+  webhook.
 
 **Also verified manually, end-to-end over real infrastructure**, outside
 the automated suite:
@@ -110,27 +140,39 @@ the automated suite:
   endpoint's stored secret, including confirming a tampered body fails
   verification) and each recorded `DELIVERED` with HTTP 200 after exactly
   one attempt.
+- **Phase 4** — the entire ledger/revenue/reconciliation/settlement
+  pipeline in one live run against real PostgreSQL: one control number +
+  five successful payments produced exactly TZS 300 total platform
+  revenue (matching the build spec's worked example to the cent) and a
+  full, correctly itemized ledger (`payment_received`,
+  `institution_entitlement`, `platform_payment_fee`,
+  `platform_control_number_fee` — every entry separately identifiable,
+  per [MONEY_FLOW.md](MONEY_FLOW.md)); a settlement batch generated from
+  those five payments computed gross/platform-fee/net correctly, a
+  second generation attempt for the same period correctly claimed zero
+  payments, and `run_reconciliation()` matched all five payments against
+  the provider with zero exceptions.
 
 ## Critical scenarios not yet testable (blocked on later phases)
 
-Of build spec section 34's 20 critical scenarios: 1–16 are now covered
-(control number creation/reuse/fee-event-distinction, successful/partial/
-full/failed payment, provider timeout → UNKNOWN, duplicate webhook →
-no second payment, reversal, refund, tenant-isolation). Still blocked:
-scenario 14 (reconciliation *dashboards/exception detection* — Phase 4;
-the payment-level UNKNOWN→resolved mechanics it would sit on top of are
-already tested), and 18–20 (unauthorized **API** access, API rate limit,
-invalid webhook signature *on an inbound API call* — all depend on the
-external API existing, Phase 6; note inbound webhook/callback signature
-validation for the *provider→KUSANYA* direction is already tested today,
-just not the ERP→KUSANYA API direction). The TZS 50 fee amounts
-themselves (Phase 4's revenue engine) aren't charged by any code yet —
-Phase 2/3 only guarantee the `created`/`reused` distinction that engine
-will read.
+Of build spec section 34's 20 critical scenarios, 1–17 are now covered
+(control number creation/reuse/fee-charged-exactly-once, successful/
+partial/full/failed payment, provider timeout → UNKNOWN, duplicate
+webhook → no second payment, reconciliation, reversal, refund,
+tenant-isolation). Still blocked: 18–20 (unauthorized **API** access, API
+rate limit, invalid webhook signature *on an inbound API call*) — all
+depend on the external API existing, Phase 6. Note inbound webhook/
+callback signature validation for the *provider→KUSANYA* direction is
+already tested today, just not the ERP→KUSANYA API direction. The TZS 50
+fee amounts are now genuinely charged (Phase 4) — this is no longer a
+gap, it's tested and verified end to end.
 
 ## Fixtures
 
 `conftest.py` at the project root: `make_user`, `make_tenant`,
-`make_membership`, `make_platform_role` — factory fixtures used across
-every app's test module so tenant/user/membership setup isn't duplicated
-per test file.
+`make_membership`, `make_platform_role`, `make_customer`,
+`make_customer_account`, `mock_provider` (the seeded `PaymentProvider`
+row), and `make_bill_with_control_number` (the full tenant → customer →
+account → bill → control number chain in one call) — factory fixtures
+used across every app's test module so this setup isn't duplicated per
+test file.

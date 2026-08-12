@@ -98,6 +98,11 @@ def platform_dashboard(request):
 
         raise PermissionDenied("Platform dashboard is restricted to platform staff.")
 
+    from django.db.models import Sum
+
+    from apps.payments.models import Payment, PaymentStatus
+    from apps.reconciliation.models import ExceptionStatus, ReconciliationException
+    from apps.revenue.models import RevenueEvent
     from apps.tenants.models import Tenant, TenantMembership
 
     context = {
@@ -105,5 +110,10 @@ def platform_dashboard(request):
         "active_tenants": Tenant.objects.filter(status=Tenant.Status.ACTIVE).count(),
         "pending_tenants": Tenant.objects.filter(status=Tenant.Status.PENDING).count(),
         "total_users_with_access": TenantMembership.objects.filter(is_active=True).count(),
+        "total_platform_revenue": RevenueEvent.objects.aggregate(total=Sum("amount"))["total"] or 0,
+        "successful_payment_count": Payment.objects.filter(status=PaymentStatus.SUCCESSFUL).count(),
+        "open_reconciliation_exceptions": ReconciliationException.objects.filter(
+            status=ExceptionStatus.OPEN
+        ).count(),
     }
     return render(request, "dashboard/platform_dashboard.html", context)

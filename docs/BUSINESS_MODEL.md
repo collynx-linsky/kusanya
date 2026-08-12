@@ -1,8 +1,9 @@
 # Business Model
 
-**Status: not yet implemented.** This document specifies the intended
-model for the revenue engine to be built in Phase 4. Nothing described
-here is charged or calculated by the current codebase.
+**Status: implemented (Phase 4).** Code: `apps/revenue/`. Both fee events
+described below are live and verified — see
+[PRICING_MODEL.md](PRICING_MODEL.md) for the exact rules and test
+evidence.
 
 ## Model
 
@@ -38,6 +39,7 @@ Tiered pricing, volume discounts, provider-specific fee pass-through
 beyond the provider's own charge, currency-specific fee schedules for
 non-TZS tenants, and any subscription add-on tier. These would each need
 their own product decision and are not assumed by the architecture — the
-revenue engine (Phase 4) is built so fee amounts are configuration, not
-hard-coded constants scattered through billing/payment code (build spec
-principle 10).
+revenue engine (`apps.revenue.services`) defines both fee amounts as two
+module-level constants, not hard-coded literals scattered through
+billing/payment code (build spec principle 10), so a future pricing
+change is a one-line edit, not a code hunt.

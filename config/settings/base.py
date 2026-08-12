@@ -70,6 +70,11 @@ LOCAL_APPS = [
     "apps.providers",
     "apps.payments",
     "apps.webhooks",
+    # Phase 4 — ledger, revenue, reconciliation, settlement:
+    "apps.ledger",
+    "apps.revenue",
+    "apps.reconciliation",
+    "apps.settlement",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS

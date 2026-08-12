@@ -59,18 +59,32 @@ def onboard(request):
 
 @login_required
 def dashboard(request):
-    """Tenant portal shell. Payment/collections figures arrive with Phase
-    3/4 — this shows only what genuinely exists today (membership,
-    customers, bills, control numbers) rather than fabricating numbers
-    for domains that don't exist yet (e.g. no "collected today" tile,
-    since nothing can be paid yet)."""
+    """Tenant portal shell — shows only what genuinely exists today
+    (membership, customers, bills, control numbers, collections,
+    platform fees, open reconciliation exceptions) rather than
+    fabricating tiles for domains that don't exist yet."""
     tenant = request.tenant
     if tenant is None:
         return render(request, "dashboard/no_access.html")
 
+    from django.db.models import Sum
+
     from apps.billing.models import Bill
     from apps.control_numbers.models import ControlNumber
     from apps.customers.models import Customer
+    from apps.payments.models import Payment, PaymentStatus
+    from apps.reconciliation.models import ExceptionStatus, ReconciliationException
+    from apps.revenue.models import RevenueEvent
+
+    gross_collected = (
+        Payment.objects.filter(tenant=tenant, status=PaymentStatus.SUCCESSFUL).aggregate(total=Sum("amount"))[
+            "total"
+        ]
+        or 0
+    )
+    platform_fees_paid = (
+        RevenueEvent.objects.filter(tenant=tenant).aggregate(total=Sum("amount"))["total"] or 0
+    )
 
     context = {
         "tenant": tenant,
@@ -78,6 +92,11 @@ def dashboard(request):
         "customer_count": Customer.objects.filter(tenant=tenant).count(),
         "bill_count": Bill.objects.filter(tenant=tenant).count(),
         "control_number_count": ControlNumber.objects.filter(tenant=tenant).count(),
+        "gross_collected": gross_collected,
+        "platform_fees_paid": platform_fees_paid,
+        "open_exception_count": ReconciliationException.objects.filter(
+            tenant=tenant, status=ExceptionStatus.OPEN
+        ).count(),
     }
     return render(request, "dashboard/tenant_dashboard.html", context)
 

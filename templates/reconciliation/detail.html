@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Reconciliation run{% endblock %}
+{% block content %}
+<h1 class="h3 mb-1">Reconciliation run</h1>
+<p class="text-body-secondary">
+    {{ run.started_at|date:"Y-m-d H:i" }} · {{ run.get_status_display }} ·
+    {{ run.total_checked }} checked, {{ run.matched_count }} matched,
+    {{ run.exception_count }} exception(s), {{ run.resolved_unknown_count }} UNKNOWN resolved.
+</p>
+
+{% if exceptions %}
+<div class="table-responsive">
+    <table class="table table-striped align-middle">
+        <thead><tr><th>Payment</th><th>Type</th><th>Status</th><th>Details</th><th></th></tr></thead>
+        <tbody>
+            {% for exception in exceptions %}
+            <tr>
+                <td><a href="{% url 'payments:detail' exception.payment.pk %}">{{ exception.payment.merchant_reference }}</a></td>
+                <td>{{ exception.get_exception_type_display }}</td>
+                <td>
+                    <span class="badge {% if exception.status == 'resolved' %}text-bg-success{% else %}text-bg-danger{% endif %}">
+                        {{ exception.get_status_display }}
+                    </span>
+                </td>
+                <td class="small text-body-secondary">{{ exception.details }}</td>
+                <td>
+                    {% if exception.status == 'open' %}
+                    <form method="post" action="{% url 'reconciliation:resolve-exception' exception.pk %}">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-sm btn-outline-success">Mark resolved</button>
+                    </form>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<p class="text-body-secondary">No exceptions in this run.</p>
+{% endif %}
+{% endblock %}

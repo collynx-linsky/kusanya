@@ -449,3 +449,121 @@ when routing collected funds to a specific tenant's collection account
 actually starts to matter. Phase 3 has exactly one provider (mock) that
 every tenant can use unconditionally, so this gap has no present
 consequence — it will before a second (real) provider is added.
+
+**Update (Phase 4):** `CollectionAccount` was *not* built in Phase 4 —
+see ADR-019 below for why, and what settlement does instead without it.
+
+---
+
+## ADR-017: `RevenueEvent` is recorded for every event in the vocabulary, including zero-fee ones — not only charged events
+
+**Decision:** `apps.revenue.services` calls a `record_*` function for
+*every* control-number/payment outcome (`CONTROL_NUMBER_REUSED`,
+`PAYMENT_FAILED`, `PAYMENT_DUPLICATE` included), not only the two that
+actually charge a fee. Zero-amount events get a `RevenueEvent` row but
+**no** `LedgerEntry`.
+
+**Reason:** Build spec section 4 explicitly lists all seven event types
+("Revenue events must include at minimum: CONTROL_NUMBER_CREATED,
+PAYMENT_SUCCESSFUL, PAYMENT_REVERSED, PAYMENT_REFUNDED, PAYMENT_FAILED,
+PAYMENT_DUPLICATE, CONTROL_NUMBER_REUSED") as things the revenue engine
+must handle — not just the ones that move money. Recording the zero-fee
+events too makes "how many control numbers were reused this month" or
+"how many payments failed" real, queryable platform metrics instead of
+information that only existed transiently in an audit log line. Not
+posting a `LedgerEntry` for them is the other half of the same judgment
+call: a ledger line with amount 0 carries no financial information and
+would just be noise in a financial ledger that's supposed to be exactly
+reconcilable — the *count* of zero-fee events is available from
+`RevenueEvent` directly.
+
+**Consequences:** Any future report or dashboard built on "platform
+activity volume" (as opposed to "platform revenue") should query
+`RevenueEvent` across all event types, not `LedgerEntry` — the two serve
+different questions and only overlap for the non-zero events.
+
+---
+
+## ADR-018: Reconciliation is scoped to per-reference provider checks, not a bulk statement import
+
+**Decision:** `apps.reconciliation.services.run_reconciliation()` only
+checks references KUSANYA already has a `Payment` row for — it calls
+`PaymentProviderAdapter.reconcile()`/`query_payment()` per payment. It
+does **not** attempt to enumerate everything the provider processed and
+look for KUSANYA-side gaps.
+
+**Reason:** `PaymentProviderAdapter` (Phase 3, see
+[docs/PAYMENT_PROVIDER_ARCHITECTURE.md](docs/PAYMENT_PROVIDER_ARCHITECTURE.md))
+was deliberately modeled after what the build spec's own interface list
+supports — `reconcile()` is per-transaction, not a bulk statement/ledger
+pull, because that's what section 12 specifies and what most real
+provider integrations actually offer (a "query this reference" endpoint,
+not a full statement API). Building bulk-import reconciliation against an
+interface that doesn't have a bulk-list method would mean inventing
+provider capabilities that may not exist for a real provider — exactly
+what build spec section 43 forbids.
+
+**Consequences:** This means one specific failure mode is *not*
+detectable by Phase 4's reconciliation: a transaction that happened at
+the provider that KUSANYA never recorded at all (no `Payment` row, so
+nothing to check `reconcile()` against). Detecting that requires a
+provider statement/settlement-file import — a genuinely different
+capability, not a gap in the current implementation, and not built.
+Documented explicitly in
+[docs/RECONCILIATION_SPEC.md](docs/RECONCILIATION_SPEC.md) so it's never
+silently assumed to be covered.
+
+---
+
+## ADR-019: Settlement claims payments directly (`Payment.settlement_batch`), without a `CollectionAccount` model
+
+**Decision:** `SettlementBatch` selects unsettled `SUCCESSFUL` payments
+for a given tenant+provider+period directly from `Payment`, and claims
+them via a `Payment.settlement_batch` FK (added to the Phase 3 `Payment`
+model). No `CollectionAccount` model was introduced, despite ADR-016
+flagging it as the natural Phase 4 home for "which tenants may use which
+provider, with what configuration."
+
+**Reason:** Once actually building settlement, the only thing Phase 4
+needed from "which provider is this tenant settling through" was already
+answerable from `Payment.provider` (every payment already records which
+provider processed it) — a `CollectionAccount` model would have added a
+layer of indirection (tenant → collection account → provider) that
+nothing in Phase 4 actually reads yet, since there's exactly one provider
+and every tenant can use it unconditionally (ADR-016). Building the model
+now, unused, would be exactly the kind of speculative scaffolding
+principle 9/section 42 warns against ("do not attempt to write every
+feature in one giant uncontrolled generation").
+
+**Consequences:** `CollectionAccount` (or an equivalent) becomes
+necessary the moment either becomes true: (a) a second real provider is
+integrated and a tenant needs to choose/configure which one(s) they
+accept, or (b) tenant-specific provider credentials/merchant codes need
+to be stored per tenant rather than assumed global. Revisit this ADR at
+that point rather than retrofitting `CollectionAccount` speculatively
+now.
+
+---
+
+## ADR-020: `Tenant.fee_refund_policy` lives on `Tenant`, not a separate revenue-config model
+
+**Decision:** The configurable accounting treatment build spec section 4
+requires for reversal/refund fee handling
+(`CLAWBACK`/`RETAIN` — see [docs/PRICING_MODEL.md](docs/PRICING_MODEL.md))
+is a single `CharField` with choices added directly to the Phase 1
+`Tenant` model, not a new `RevenuePolicy`/`TenantRevenueConfig` model.
+
+**Reason:** It's one setting, tenant-scoped 1:1, with no independent
+lifecycle of its own (it doesn't get created/approved/versioned
+separately from the tenant) — a dedicated model would be a
+one-column table joined 1:1 to `Tenant` for no structural benefit. Every
+other tenant-level configuration introduced so far (`default_currency`,
+`fee_refund_policy`) follows the same pattern: a field on `Tenant`, not a
+satellite config model, until enough related settings accumulate to
+justify grouping them.
+
+**Consequences:** If Phase 4+ needs several more revenue-related
+per-tenant settings, revisit whether they belong grouped in a dedicated
+config model rather than continuing to add fields to `Tenant` — a `Tenant`
+model that accumulates too many unrelated concerns becomes its own
+maintenance problem. Not yet at that threshold.

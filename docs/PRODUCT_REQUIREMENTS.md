@@ -55,7 +55,7 @@ ADR-005 for why later-phase apps aren't pre-scaffolded.
 | 1 | **Done.** Foundation: Django, Postgres, Redis, Celery, Docker, auth, tenancy, RBAC, audit |
 | 2 | **Done.** Customer, Account, Billing, Control Number |
 | 3 | **Done.** Payment domain, provider abstraction, mock provider, payment lifecycle, idempotency, webhooks |
-| 4 | Ledger, Revenue, Reconciliation, Settlement |
+| 4 | **Done.** Ledger, Revenue, Reconciliation, Settlement |
 | 5 | Notifications, Receipts, Reports |
 | 6 | External API, API keys, webhooks, OpenAPI docs |
 | 7 | Security hardening, full test coverage, monitoring, production prep |
@@ -76,31 +76,35 @@ ADR-005 for why later-phase apps aren't pre-scaffolded.
   (revenue engine) — the `created`/`reused` distinction it will key off
   is already correct and tested.
 - **C — Reuse control number:** existing account → request control number
-  → existing one returned → no second creation fee. **Implemented**
-  (`get_or_create_for_bill`/`get_or_create_for_account` — see
+  → existing one returned → no second creation fee. **Fully implemented,
+  fee included** (`get_or_create_for_bill`/`get_or_create_for_account`
+  charges via `apps.revenue.services` only on genuine creation — see
   [CONTROL_NUMBER_SPEC.md](CONTROL_NUMBER_SPEC.md) and
-  [PRICING_MODEL.md](PRICING_MODEL.md) for the rule verified). Fee
-  charging itself is Phase 4.
+  [PRICING_MODEL.md](PRICING_MODEL.md), including the build spec's own
+  worked example reproduced exactly).
 - **D — Payment:** customer → provider → callback → successful → ledger →
-  balance update → platform fee → notification → receipt. **Mostly
-  implemented** (Phase 3: `apps.payments.services.initiate_payment` /
-  `process_callback`, auto-allocation to the bill, webhook dispatch to
-  the tenant). Not yet: the ledger proper (Phase 4 — allocation currently
-  updates `Bill` directly, not a `LedgerEntry`), the platform fee (Phase
-  4), and notifications/receipts (Phase 5) — a webhook fires, but nothing
-  emails/SMS's the customer yet.
+  balance update → platform fee → notification → receipt. **Fully
+  implemented except notification/receipt** (Phase 3/4:
+  `apps.payments.services`, `apps.ledger`, `apps.revenue` — a payment
+  posts `PAYMENT_RECEIVED`/`INSTITUTION_ENTITLEMENT`/
+  `PLATFORM_PAYMENT_FEE` ledger entries and the TZS 50 fee, in addition to
+  updating the bill balance and dispatching a webhook). Notifications/
+  receipts (Phase 5) don't exist — a webhook fires, but nothing emails/
+  SMS's the customer or generates a receipt document yet.
 - **E — Partial payments:** multiple payments against one bill until
   fully paid. **Implemented** — `apps.payments.services._allocate_to_bill`
   transitions `ACTIVE → PARTIALLY_PAID → PAID` as successive payments are
   allocated; tested with three sequential payments fully paying a bill.
 - **F — Provider failure:** timeout → UNKNOWN → reconciliation → final
-  status. **Implemented up to "final status"** (Phase 3: timeout → UNKNOWN
-  → `query_payment()` → resolved) — see
-  [PAYMENT_LIFECYCLE.md](PAYMENT_LIFECYCLE.md). The *scheduled,
-  automatic* reconciliation backstop for payments that stay `UNKNOWN`
-  even after an explicit query is Phase 4
-  ([RECONCILIATION_SPEC.md](RECONCILIATION_SPEC.md)); today `UNKNOWN`
-  resolution is manual (a "Query provider" portal button).
+  status. **Fully implemented** (Phase 3/4: timeout → UNKNOWN →
+  `query_payment()` → resolved, plus Phase 4's `run_reconciliation()` as
+  the scheduled-on-demand backstop that resolves any UNKNOWN payment left
+  over and flags provider/internal status drift as an exception rather
+  than silently correcting it) — see
+  [PAYMENT_LIFECYCLE.md](PAYMENT_LIFECYCLE.md) and
+  [RECONCILIATION_SPEC.md](RECONCILIATION_SPEC.md). Reconciliation runs
+  on demand (a portal button / platform action), not yet on an automatic
+  Celery beat schedule.
 - **G — ERP integration:** external system authenticates, creates a bill,
   gets a control number, receives a webhook. **Partially implemented**:
   "receives a webhook" is real (Phase 3 — any tenant can register an
@@ -111,11 +115,12 @@ ADR-005 for why later-phase apps aren't pre-scaffolded.
 
 ## Non-goals for Phase 1 (explicitly out of scope, then)
 
-Billing, control numbers, payments, provider adapters, ledger,
+Billing, control numbers, payments, provider adapters, ledger, revenue,
 reconciliation, settlement, notifications, receipts, reports, and the
 external REST API. Any UI element that might imply these exist was
 labeled "Not yet implemented" rather than showing placeholder/fake data
-(build spec section 44). Billing, control numbers, payments, the provider
-abstraction, and outbound webhooks are now built (Phases 2–3, above) —
-the ledger, reconciliation, settlement, notifications, receipts, reports,
-and the external API remain out of scope until their respective phases.
+(build spec section 44). As of Phase 4: billing, control numbers,
+payments (including fees), the provider abstraction, outbound webhooks,
+the ledger, revenue, reconciliation, and settlement are all built (Phases
+2–4, above) — only notifications, receipts, reports, and the external API
+remain out of scope, until Phases 5 and 6.
