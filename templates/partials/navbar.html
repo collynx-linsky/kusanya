@@ -1,0 +1,53 @@
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark border-bottom border-body">
+    <div class="container-fluid">
+        <a class="navbar-brand fw-bold" href="{% url 'core:home' %}">
+            {{ KUSANYA_BRAND_NAME }}
+            <span class="badge text-bg-secondary fw-normal ms-1">Foundation</span>
+        </a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navMain">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navMain">
+            <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                {% if user.is_authenticated %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'core:dashboard-router' %}">Dashboard</a>
+                    </li>
+                    {% if user.is_staff %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'tenants:pending-tenants' %}">Pending institutions</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/admin/">Admin</a>
+                    </li>
+                    {% endif %}
+                {% endif %}
+            </ul>
+            <ul class="navbar-nav">
+                {% if current_tenant %}
+                <li class="nav-item">
+                    <span class="navbar-text me-3">{{ current_tenant.name }}</span>
+                </li>
+                {% endif %}
+                {% if user.is_authenticated %}
+                <li class="nav-item">
+                    <span class="navbar-text me-3">{{ user.email }}</span>
+                </li>
+                <li class="nav-item">
+                    <form method="post" action="{% url 'accounts:logout' %}" class="d-inline">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-outline-light btn-sm">Sign out</button>
+                    </form>
+                </li>
+                {% else %}
+                <li class="nav-item">
+                    <a class="nav-link" href="{% url 'accounts:login' %}">Sign in</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{% url 'tenants:onboard' %}">Register institution</a>
+                </li>
+                {% endif %}
+            </ul>
+        </div>
+    </div>
+</nav>

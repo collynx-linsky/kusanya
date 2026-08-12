@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Platform dashboard{% endblock %}
+{% block content %}
+<h1 class="h3 mb-4">Platform dashboard</h1>
+<p class="text-body-secondary">
+    Phase 1 foundation — figures below are real counts from the database.
+    Collections/revenue metrics arrive with the billing and payment domains
+    (Phase 2–4).
+</p>
+<div class="row g-3">
+    <div class="col-6 col-lg-3">
+        <div class="card shadow-sm h-100">
+            <div class="card-body">
+                <div class="text-body-secondary small text-uppercase">Institutions</div>
+                <div class="display-6">{{ total_tenants }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="card shadow-sm h-100">
+            <div class="card-body">
+                <div class="text-body-secondary small text-uppercase">Active</div>
+                <div class="display-6">{{ active_tenants }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="card shadow-sm h-100">
+            <div class="card-body">
+                <div class="text-body-secondary small text-uppercase">Pending approval</div>
+                <div class="display-6">{{ pending_tenants }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="card shadow-sm h-100">
+            <div class="card-body">
+                <div class="text-body-secondary small text-uppercase">Active memberships</div>
+                <div class="display-6">{{ total_users_with_access }}</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="mt-4">
+    <a href="{% url 'tenants:pending-tenants' %}" class="btn btn-primary">Review pending institutions</a>
+</div>
+
+<div class="alert alert-secondary mt-4">
+    <strong>Not yet implemented:</strong> billing, control numbers, payments,
+    revenue, reconciliation and settlement dashboards. These are explicitly
+    out of scope for Phase 1 — see docs/PRODUCT_REQUIREMENTS.md.
+</div>
+{% endblock %}

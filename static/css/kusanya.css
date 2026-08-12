@@ -1,0 +1,15 @@
+/* KUSANYA — minimal brand overrides on top of Bootstrap 5.
+   Kept intentionally small in Phase 1; a fuller design system arrives with
+   the dashboards/reporting work (build spec section 26–27). */
+
+:root {
+    --kusanya-ink: #10182b;
+}
+
+.navbar-brand {
+    letter-spacing: 0.02em;
+}
+
+.display-6 {
+    font-variant-numeric: tabular-nums;
+}

@@ -1,0 +1,94 @@
+# KUSANYA local development stack.
+#
+# Host ports are deliberately non-default (5434/6381) because this
+# developer machine already runs Postgres on 5432 and other project
+# containers on 5433/6380 — inside the Docker network services still talk
+# to each other on the standard 5432/6379.
+#
+# Nginx is not included for local development (Django's dev server / the
+# `web` service serve directly on :8000); see docs/DEPLOYMENT.md for the
+# production topology, which does front the app with a reverse proxy.
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: kusanya
+      POSTGRES_USER: kusanya
+      POSTGRES_PASSWORD: kusanya
+    ports:
+      - "5434:5432"
+    volumes:
+      - kusanya_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kusanya"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6381:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  web:
+    build: .
+    command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.development
+      DATABASE_URL: postgres://kusanya:kusanya@db:5432/kusanya
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+      DJANGO_DEBUG: "True"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  celery_worker:
+    build: .
+    command: celery -A config worker --loglevel=info
+    volumes:
+      - .:/app
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.development
+      DATABASE_URL: postgres://kusanya:kusanya@db:5432/kusanya
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  celery_beat:
+    build: .
+    command: celery -A config beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    volumes:
+      - .:/app
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.development
+      DATABASE_URL: postgres://kusanya:kusanya@db:5432/kusanya
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+volumes:
+  kusanya_postgres_data:

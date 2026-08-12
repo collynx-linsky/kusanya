@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}{{ tenant.name }} dashboard{% endblock %}
+{% block content %}
+<h1 class="h3 mb-1">{{ tenant.name }}</h1>
+<p class="text-body-secondary">
+    Sector: {{ tenant.get_sector_display }} ·
+    Status: <span class="badge {% if tenant.status == 'active' %}text-bg-success{% elif tenant.status == 'pending' %}text-bg-warning{% else %}text-bg-secondary{% endif %}">{{ tenant.get_status_display }}</span>
+</p>
+
+<div class="row g-3 mt-2">
+    <div class="col-6 col-lg-3">
+        <div class="card shadow-sm h-100">
+            <div class="card-body">
+                <div class="text-body-secondary small text-uppercase">Team members</div>
+                <div class="display-6">{{ member_count }}</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="alert alert-secondary mt-4">
+    <strong>Not yet implemented:</strong> customers, bills, control numbers,
+    payments, receipts and reports. Phase 1 delivers only the institution
+    account, membership, and authentication foundation these will be built
+    on. See docs/PRODUCT_REQUIREMENTS.md for the phased roadmap.
+</div>
+{% endblock %}

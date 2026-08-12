@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Pending institutions{% endblock %}
+{% block content %}
+<h1 class="h3 mb-4">Pending institutions</h1>
+
+{% if tenants %}
+<div class="table-responsive">
+    <table class="table table-striped align-middle">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Sector</th>
+                <th>Contact</th>
+                <th>Registered</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for tenant in tenants %}
+            <tr>
+                <td>{{ tenant.name }}</td>
+                <td>{{ tenant.get_sector_display }}</td>
+                <td>{{ tenant.contact_email }}</td>
+                <td>{{ tenant.created_at|date:"Y-m-d H:i" }}</td>
+                <td>
+                    <form method="post" action="{% url 'tenants:approve-tenant' tenant.pk %}">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-sm btn-success">Approve</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<p class="text-body-secondary">No institutions awaiting approval.</p>
+{% endif %}
+{% endblock %}
