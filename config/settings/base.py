@@ -66,6 +66,10 @@ LOCAL_APPS = [
     "apps.customers",
     "apps.billing",
     "apps.control_numbers",
+    # Phase 3 — payment domain, provider abstraction, webhooks:
+    "apps.providers",
+    "apps.payments",
+    "apps.webhooks",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS

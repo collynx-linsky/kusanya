@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Deliveries — {{ endpoint.url }}{% endblock %}
+{% block content %}
+<h1 class="h3 mb-1">Deliveries</h1>
+<p class="text-body-secondary">{{ endpoint.url }}</p>
+
+{% if deliveries %}
+<div class="table-responsive">
+    <table class="table table-striped align-middle">
+        <thead><tr><th>Event</th><th>Status</th><th>Attempts</th><th>Response</th><th>Created</th></tr></thead>
+        <tbody>
+            {% for delivery in deliveries %}
+            <tr>
+                <td>{{ delivery.event_type }}</td>
+                <td>
+                    <span class="badge
+                        {% if delivery.status == 'delivered' %}text-bg-success
+                        {% elif delivery.status == 'dead_letter' %}text-bg-danger
+                        {% elif delivery.status == 'retrying' %}text-bg-warning
+                        {% else %}text-bg-secondary{% endif %}">{{ delivery.get_status_display }}</span>
+                </td>
+                <td>{{ delivery.attempt_count }} / {{ delivery.max_attempts }}</td>
+                <td>{{ delivery.response_status_code|default:"—" }}</td>
+                <td>{{ delivery.created_at|date:"Y-m-d H:i" }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<p class="text-body-secondary">No deliveries yet.</p>
+{% endif %}
+{% endblock %}

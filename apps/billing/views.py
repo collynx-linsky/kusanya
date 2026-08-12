@@ -5,7 +5,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 
 from apps.billing.forms import QuickBillForm
 from apps.billing.models import Bill, BillStatus
-from apps.billing.services import get_or_create_bill
+from apps.billing.services import cancel_bill, get_or_create_bill
 from apps.control_numbers.services import get_or_create_for_bill
 from apps.tenants.models import TenantRole
 from apps.tenants.permissions import require_tenant_role
@@ -77,7 +77,7 @@ def bill_cancel(request, pk):
     bill = get_object_or_404(Bill, pk=pk, tenant=request.tenant)
     if request.method == "POST":
         try:
-            bill.transition_to(BillStatus.CANCELLED)
+            cancel_bill(bill, actor=request.user)
             messages.success(request, f"Bill {bill.bill_number} cancelled.")
         except ValidationError as exc:
             messages.error(request, str(exc))

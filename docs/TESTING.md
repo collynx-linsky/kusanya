@@ -23,7 +23,7 @@ convenient for tests).
 and their effects are directly assertable), locmem cache, and locmem
 email backend.
 
-## What's covered today (Phase 1 + 2 — 52 tests)
+## What's covered today (Phase 1 + 2 + 3 — 87 tests)
 
 - **Health check** — `apps/core/tests/tests.py`: DB/cache connectivity,
   correlation ID generation and echo.
@@ -70,26 +70,63 @@ email backend.
   control number can be reissued after its predecessor is cancelled;
   generated values never contain the customer's name or phone number.
 
-**Also verified manually, end-to-end over real HTTP** during Phase 2
-development (login → dashboard → create customer → create account →
-create bill → bill auto-requests a control number → explicitly
-re-requesting it returns the identical value, confirmed against both the
-rendered page and the database) — this is not part of the automated
-suite, but the same guarantee the automated tests check was independently
-confirmed through the actual portal, not just at the service-function
-level.
+- **Providers** (`apps/providers/tests/tests.py`) — the mock adapter's
+  outcome simulation (successful/failed/pending/timeout), the honesty
+  property that a simulated timeout still deterministically records what
+  "actually happened" server-side (queryable afterward), reference
+  validation, and callback signature verification (correct signature
+  accepted, tampered payload rejected, missing signature rejected).
+- **Payments** (`apps/payments/tests/tests.py`, 22 tests) — the full
+  lifecycle: successful/failed/partial/multi-payment scenarios and their
+  effect (or lack of effect) on the underlying bill; the UNKNOWN-on-
+  timeout rule and its resolution via `query_payment()` (including that
+  querying twice doesn't double-allocate); initiation idempotency by
+  `idempotency_key`; **the three-times-duplicate-webhook guarantee**
+  (`test_same_event_delivered_three_times_produces_one_financial_event`
+  — exactly one `PaymentAllocation` and one paid bill after three
+  identical callback deliveries); unmatched and invalid-signature
+  callback handling; refund/reversal, including that a payment which
+  never succeeded cannot be refunded.
+- **Webhooks** (`apps/webhooks/tests/tests.py`) — signature
+  build/verify correctness (including tamper detection and
+  order-independent canonical JSON); `dispatch_event` creates exactly one
+  delivery per active, subscribed, *same-tenant* endpoint; delivery
+  execution success/non-2xx/network-error handling; exhausting
+  `max_attempts` moves a delivery to `DEAD_LETTER`.
+
+**Also verified manually, end-to-end over real infrastructure**, outside
+the automated suite:
+
+- **Phase 2** — the control-number reuse guarantee, driven entirely over
+  real HTTP with real login/CSRF/RBAC: register → approve → log in →
+  create customer → create account → create bill (auto-issues a control
+  number) → explicitly re-request it → identical value returned,
+  confirmed against both the rendered page and the database.
+- **Phase 3** — the full payment → webhook pipeline with a real Celery
+  worker (not `CELERY_TASK_ALWAYS_EAGER`): initiating a successful mock
+  payment produced `bill.created` and `payment.successful` webhook
+  deliveries to a local HTTP receiver, each with a correctly verifiable
+  HMAC signature (independently re-checked afterward against the
+  endpoint's stored secret, including confirming a tampered body fails
+  verification) and each recorded `DELIVERED` with HTTP 200 after exactly
+  one attempt.
 
 ## Critical scenarios not yet testable (blocked on later phases)
 
-Everything from build spec section 34 that depends on payments —
-control-number-creation-fee-charged-once (Phase 4's revenue engine reading
-the `created`/`reused` distinction Phase 2 already provides), duplicate
-webhook → no second payment, partial/full payment, provider timeout →
-`UNKNOWN`, reconciliation, reversal, refund, API rate limiting, webhook
-signature validation — cannot be tested because the code they'd test
-doesn't exist yet (Phase 3–6). Each of those phases' documentation
-([PRICING_MODEL.md](PRICING_MODEL.md), [PAYMENT_LIFECYCLE.md](PAYMENT_LIFECYCLE.md))
-lists the specific tests that phase must ship with.
+Of build spec section 34's 20 critical scenarios: 1–16 are now covered
+(control number creation/reuse/fee-event-distinction, successful/partial/
+full/failed payment, provider timeout → UNKNOWN, duplicate webhook →
+no second payment, reversal, refund, tenant-isolation). Still blocked:
+scenario 14 (reconciliation *dashboards/exception detection* — Phase 4;
+the payment-level UNKNOWN→resolved mechanics it would sit on top of are
+already tested), and 18–20 (unauthorized **API** access, API rate limit,
+invalid webhook signature *on an inbound API call* — all depend on the
+external API existing, Phase 6; note inbound webhook/callback signature
+validation for the *provider→KUSANYA* direction is already tested today,
+just not the ERP→KUSANYA API direction). The TZS 50 fee amounts
+themselves (Phase 4's revenue engine) aren't charged by any code yet —
+Phase 2/3 only guarantee the `created`/`reused` distinction that engine
+will read.
 
 ## Fixtures
 

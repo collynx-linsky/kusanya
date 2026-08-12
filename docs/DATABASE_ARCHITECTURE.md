@@ -44,6 +44,12 @@ that writes is wrapped in a transaction by default.
   account" among `status="active"` rows (so historical
   expired/cancelled ones don't block reissuing) — see
   [../ARCHITECTURE_DECISIONS.md](../ARCHITECTURE_DECISIONS.md) ADR-011.
+  Phase 3 extends the same pattern to `Payment.idempotency_key` (unique
+  per tenant, only when non-blank) and — most importantly —
+  `PaymentCallbackEvent(provider, external_event_id)` (unique, only when
+  non-blank), which is what makes "the same provider webhook delivered
+  three times produces one financial event" a database-enforced fact
+  rather than a hope — see ADR-014.
 - **Tenant-scoped models inherit `TenantScopedModel`**, which adds a
   required `tenant` FK with `on_delete=PROTECT` — a tenant can't be
   deleted out from under data that still references it.

@@ -28,6 +28,7 @@ and reporting. It is explicitly **not** a school-specific system — see
 | [RECONCILIATION_SPEC.md](RECONCILIATION_SPEC.md) | Cross-system matching |
 | [SETTLEMENT_SPEC.md](SETTLEMENT_SPEC.md) | Settlement batches |
 | [NOTIFICATION_SPEC.md](NOTIFICATION_SPEC.md) | Templated multi-channel notifications |
+| [WEBHOOK_ARCHITECTURE.md](WEBHOOK_ARCHITECTURE.md) | Outbound event delivery: signing, retries, dead-letter |
 | [MULTI_TENANCY.md](MULTI_TENANCY.md) | Tenant isolation guarantees |
 | [RBAC.md](RBAC.md) | Platform and tenant roles |
 | [SECURITY_ARCHITECTURE.md](SECURITY_ARCHITECTURE.md) | Security controls, honest gaps |
@@ -39,7 +40,7 @@ and reporting. It is explicitly **not** a school-specific system — see
 | [COMPLIANCE_ASSUMPTIONS.md](COMPLIANCE_ASSUMPTIONS.md) | Summary — see compliance/ for detail |
 | [compliance/REGULATORY_ASSUMPTIONS.md](compliance/REGULATORY_ASSUMPTIONS.md) | Full regulatory-boundary documentation |
 
-## What exists today (Phase 1 + 2)
+## What exists today (Phase 1 + 2 + 3)
 
 **Phase 1:** identity (`apps.users`), authentication (`apps.accounts`),
 multi-tenancy and RBAC (`apps.tenants`), organizational sub-structure
@@ -49,12 +50,21 @@ multi-tenancy and RBAC (`apps.tenants`), organizational sub-structure
 bills with an enforced status state machine (`apps.billing`), and the
 persistent control-number engine with its create-once/reuse-many
 guarantee (`apps.control_numbers`) — all idempotent by
-`external_reference`, all tenant-isolated, all tested against real
-PostgreSQL and (for the core control-number guarantee) verified over
-real HTTP end to end.
+`external_reference`, all tenant-isolated.
 
-Payments, the provider abstraction, the ledger, reconciliation,
-settlement, notifications, receipts, reports, and the external API do not
-exist yet (Phase 3–6). Every document in this folder describes the
-**target** design for its domain; where that domain isn't built yet, the
-document says so rather than implying it's live.
+**Phase 3:** the provider abstraction and its only implementation, a
+clearly-labeled MOCK/SANDBOX adapter (`apps.providers`); the payment
+domain with a fully enforced state machine, the UNKNOWN-on-timeout rule,
+and idempotent initiation/callback handling (`apps.payments`); and
+outbound webhook delivery with HMAC signing, exponential-backoff retry,
+and dead-lettering (`apps.webhooks`). 87 automated tests pass against
+real PostgreSQL; the control-number reuse guarantee (Phase 2) and the
+full payment→webhook pipeline (Phase 3, including a real Celery worker
+delivering a real signed HTTP POST) were additionally verified manually,
+end to end, outside the test suite.
+
+The ledger, reconciliation, settlement, notifications, receipts, reports,
+and the external API do not exist yet (Phase 4–6). Every document in
+this folder describes the **target** design for its domain; where that
+domain isn't built yet, the document says so rather than implying it's
+live.

@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Webhook endpoints{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0">Webhook endpoints</h1>
+    <a href="{% url 'webhooks:create' %}" class="btn btn-primary">New endpoint</a>
+</div>
+<p class="text-body-secondary">
+    Configure a URL to receive payment/bill event notifications. Every
+    delivery is signed (HMAC-SHA256) — see docs/WEBHOOK_ARCHITECTURE.md
+    for how to verify it on your end.
+</p>
+
+{% if endpoints %}
+<div class="table-responsive">
+    <table class="table table-striped align-middle">
+        <thead><tr><th>URL</th><th>Active</th><th>Deliveries</th></tr></thead>
+        <tbody>
+            {% for endpoint in endpoints %}
+            <tr>
+                <td>{{ endpoint.url }}</td>
+                <td>{% if endpoint.is_active %}<span class="badge text-bg-success">Active</span>{% else %}<span class="badge text-bg-secondary">Inactive</span>{% endif %}</td>
+                <td><a href="{% url 'webhooks:deliveries' endpoint.pk %}">View</a></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<p class="text-body-secondary">No webhook endpoints configured yet.</p>
+{% endif %}
+{% endblock %}

@@ -36,6 +36,14 @@
                             <td colspan="3" class="text-end">Total</td>
                             <td>{{ bill.total_amount }} {{ bill.currency }}</td>
                         </tr>
+                        <tr>
+                            <td colspan="3" class="text-end">Paid</td>
+                            <td>{{ bill.amount_paid }} {{ bill.currency }}</td>
+                        </tr>
+                        <tr class="fw-bold">
+                            <td colspan="3" class="text-end">Balance</td>
+                            <td>{{ bill.balance }} {{ bill.currency }}</td>
+                        </tr>
                     </tfoot>
                 </table>
             </div>
@@ -70,12 +78,30 @@
                 </p>
             </div>
         </div>
+
+        {% if control_number and bill.balance > 0 %}
+        <a href="{% url 'payments:pay-bill' bill.pk %}" class="btn btn-success w-100 mt-3">Pay this bill</a>
+        {% endif %}
+
+        {% if bill.payment_allocations.exists %}
+        <div class="card shadow-sm mt-3">
+            <div class="card-header">Payments</div>
+            <ul class="list-group list-group-flush">
+                {% for allocation in bill.payment_allocations.all %}
+                <li class="list-group-item d-flex justify-content-between">
+                    <a href="{% url 'payments:detail' allocation.payment.pk %}">{{ allocation.payment.merchant_reference }}</a>
+                    <span>{{ allocation.amount }} {{ bill.currency }}</span>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
     </div>
 </div>
 
 <div class="alert alert-secondary mt-4">
-    <strong>Not yet implemented:</strong> payments, receipts, and balance
-    tracking against this bill — those arrive in Phase 3/4/5. The control
-    number above is fully functional; nothing can be paid against it yet.
+    <strong>Not yet implemented:</strong> receipts, reconciliation, and
+    settlement — those arrive in Phase 4/5. Payments and balance tracking
+    are fully functional (Phase 3), against the MOCK/SANDBOX provider only.
 </div>
 {% endblock %}

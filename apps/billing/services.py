@@ -75,6 +75,7 @@ def get_or_create_bill(
                     target=bill,
                     after={"total_amount": str(bill.total_amount), "status": bill.status},
                 )
+                _dispatch_bill_event(bill, "bill.created")
             return bill, True
         except IntegrityError:
             # Could be a bill_number collision (retry generation) or a
@@ -90,3 +91,29 @@ def get_or_create_bill(
             continue
 
     raise IntegrityError("Could not generate a unique bill number after 3 attempts.")
+
+
+def cancel_bill(bill: Bill, *, actor=None):
+    from apps.billing.models import BillStatus
+
+    bill.transition_to(BillStatus.CANCELLED)
+    record_audit_event(action="bill.cancelled", actor=actor, tenant=bill.tenant, target=bill)
+    _dispatch_bill_event(bill, "bill.cancelled")
+    return bill
+
+
+def _dispatch_bill_event(bill: Bill, event_type: str) -> None:
+    from apps.webhooks.services import dispatch_event
+
+    dispatch_event(
+        tenant=bill.tenant,
+        event_type=event_type,
+        payload={
+            "bill_id": str(bill.id),
+            "bill_number": bill.bill_number,
+            "status": bill.status,
+            "total_amount": str(bill.total_amount),
+            "currency": bill.currency,
+            "customer_account": bill.customer_account.name,
+        },
+    )

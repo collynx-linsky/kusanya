@@ -140,6 +140,18 @@ class Bill(TenantScopedModel):
             self.cancelled_at = timezone.now()
         self.save(update_fields=["status", "issued_at", "cancelled_at", "updated_at"])
 
+    @property
+    def amount_paid(self):
+        """Computed from PaymentAllocation rows (apps.payments, Phase 3)
+        — never a stored/hand-edited field. See
+        docs/LEDGER_SPEC.md#outstanding-balance-is-always-computed-never-stored-and-edited."""
+        total = self.payment_allocations.aggregate(total=models.Sum("amount"))["total"]
+        return total or 0
+
+    @property
+    def balance(self):
+        return self.total_amount - self.amount_paid
+
 
 class BillItem(TenantScopedModel):
     bill = models.ForeignKey(Bill, on_delete=models.CASCADE, related_name="items")

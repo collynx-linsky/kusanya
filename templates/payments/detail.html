@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}{{ payment.merchant_reference }}{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-start">
+    <div>
+        <h1 class="h3 mb-1">{{ payment.merchant_reference }}</h1>
+        <p class="text-body-secondary mb-0">
+            Control number <span class="font-monospace">{{ payment.control_number.value }}</span>
+            {% if payment.control_number.bill %}
+                · Bill <a href="{% url 'billing:detail' payment.control_number.bill.pk %}">{{ payment.control_number.bill.bill_number }}</a>
+            {% endif %}
+        </p>
+    </div>
+    <span class="badge fs-6
+        {% if payment.status == 'successful' %}text-bg-success
+        {% elif payment.status == 'pending' or payment.status == 'initiated' %}text-bg-warning
+        {% elif payment.status == 'unknown' %}text-bg-dark
+        {% elif payment.status == 'failed' or payment.status == 'expired' %}text-bg-secondary
+        {% else %}text-bg-info{% endif %}">{{ payment.get_status_display }}</span>
+</div>
+
+<div class="row mt-4 g-3">
+    <div class="col-md-6">
+        <div class="card shadow-sm">
+            <div class="card-header">Details</div>
+            <table class="table mb-0">
+                <tbody>
+                    <tr><th>Amount</th><td>{{ payment.amount }} {{ payment.currency }}</td></tr>
+                    <tr><th>Provider</th><td>{{ payment.provider }}</td></tr>
+                    <tr><th>Payer reference</th><td>{{ payment.payer_reference|default:"—" }}</td></tr>
+                    <tr><th>Provider reference</th><td class="font-monospace">{{ payment.provider_reference|default:"—" }}</td></tr>
+                    <tr><th>Initiated</th><td>{{ payment.initiated_at|date:"Y-m-d H:i:s" }}</td></tr>
+                    <tr><th>Completed</th><td>{{ payment.completed_at|date:"Y-m-d H:i:s"|default:"—" }}</td></tr>
+                    {% if payment.failure_reason %}
+                    <tr><th>Note</th><td>{{ payment.failure_reason }}</td></tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card shadow-sm">
+            <div class="card-header">Actions</div>
+            <div class="card-body d-flex flex-column gap-2">
+                {% if payment.status == 'unknown' %}
+                <form method="post" action="{% url 'payments:query' payment.pk %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-dark w-100">Query provider (resolve UNKNOWN)</button>
+                </form>
+                <p class="small text-body-secondary mb-0">
+                    Never retried automatically — the provider is asked what
+                    actually happened before anything else changes.
+                </p>
+                {% endif %}
+                {% if payment.status == 'successful' %}
+                <form method="post" action="{% url 'payments:refund' payment.pk %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-outline-danger w-100">Refund</button>
+                </form>
+                <form method="post" action="{% url 'payments:reverse' payment.pk %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-outline-danger w-100">Reverse</button>
+                </form>
+                {% endif %}
+                {% if payment.status != 'unknown' and payment.status != 'successful' %}
+                <p class="text-body-secondary mb-0">No actions available for this status.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -11,12 +11,15 @@ ledger. See [docs/PRODUCT_REQUIREMENTS.md](docs/PRODUCT_REQUIREMENTS.md)
 for the full product vision and [docs/](docs/) for the complete
 specification set.
 
-**Status: Phase 1 + 2 complete.** Identity, multi-tenancy, RBAC, audit
-logging, customers/accounts, billing, and the persistent control-number
-engine (create-once, reuse-many, idempotent by `external_reference`) are
-implemented and tested against real PostgreSQL. Payments, the provider
-abstraction, the ledger, reconciliation, settlement, notifications, and
-the external API do not exist yet — they arrive in later phases (see
+**Status: Phase 1 + 2 + 3 complete.** Identity, multi-tenancy, RBAC, audit
+logging, customers/accounts, billing, the persistent control-number
+engine, the payment domain (full lifecycle, UNKNOWN-on-timeout handling,
+idempotent initiation and callbacks), a mock/sandbox provider adapter,
+and signed outbound webhook delivery are implemented and tested against
+real PostgreSQL — 87 automated tests, plus manual end-to-end verification
+including a real Celery worker delivering a real signed webhook. The
+ledger, reconciliation, settlement, notifications, and the external API
+do not exist yet — they arrive in later phases (see
 [docs/PRODUCT_REQUIREMENTS.md](docs/PRODUCT_REQUIREMENTS.md#development-phases)).
 Nothing in this codebase claims to be a licensed payment institution; see
 [docs/compliance/REGULATORY_ASSUMPTIONS.md](docs/compliance/REGULATORY_ASSUMPTIONS.md).

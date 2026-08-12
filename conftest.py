@@ -61,3 +61,37 @@ def make_customer_account(db):
         return CustomerAccount.objects.create(tenant=tenant, customer=customer, name=name, **kwargs)
 
     return _make
+
+
+@pytest.fixture
+def mock_provider(db):
+    from apps.providers.models import PaymentProvider
+
+    return PaymentProvider.objects.get(code="mock")
+
+
+@pytest.fixture
+def make_bill_with_control_number(db):
+    """End-to-end helper: tenant -> customer -> account -> bill -> control
+    number, mirroring apps.billing.views.bill_create's real flow, so
+    payment tests don't have to hand-assemble the whole chain."""
+    from decimal import Decimal
+
+    from apps.billing.models import BillStatus
+    from apps.billing.services import get_or_create_bill
+    from apps.control_numbers.services import get_or_create_for_bill
+    from apps.customers.models import Customer, CustomerAccount
+
+    def _make(tenant, amount=Decimal("500000")):
+        customer = Customer.objects.create(tenant=tenant, full_name="Test Payer")
+        account = CustomerAccount.objects.create(tenant=tenant, customer=customer, name="Test Account")
+        bill, _ = get_or_create_bill(
+            tenant=tenant,
+            customer_account=account,
+            items=[{"description": "Fee", "unit_amount": amount}],
+        )
+        bill.transition_to(BillStatus.ACTIVE)
+        control_number, _ = get_or_create_for_bill(tenant=tenant, bill=bill)
+        return bill, control_number
+
+    return _make

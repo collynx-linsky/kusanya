@@ -54,7 +54,7 @@ ADR-005 for why later-phase apps aren't pre-scaffolded.
 |---|---|
 | 1 | **Done.** Foundation: Django, Postgres, Redis, Celery, Docker, auth, tenancy, RBAC, audit |
 | 2 | **Done.** Customer, Account, Billing, Control Number |
-| 3 | Payment domain, provider abstraction, mock provider, payment lifecycle, idempotency, webhooks |
+| 3 | **Done.** Payment domain, provider abstraction, mock provider, payment lifecycle, idempotency, webhooks |
 | 4 | Ledger, Revenue, Reconciliation, Settlement |
 | 5 | Notifications, Receipts, Reports |
 | 6 | External API, API keys, webhooks, OpenAPI docs |
@@ -82,17 +82,32 @@ ADR-005 for why later-phase apps aren't pre-scaffolded.
   [PRICING_MODEL.md](PRICING_MODEL.md) for the rule verified). Fee
   charging itself is Phase 4.
 - **D — Payment:** customer → provider → callback → successful → ledger →
-  balance update → platform fee → notification → receipt. Not implemented
-  (Phase 3/4/5).
+  balance update → platform fee → notification → receipt. **Mostly
+  implemented** (Phase 3: `apps.payments.services.initiate_payment` /
+  `process_callback`, auto-allocation to the bill, webhook dispatch to
+  the tenant). Not yet: the ledger proper (Phase 4 — allocation currently
+  updates `Bill` directly, not a `LedgerEntry`), the platform fee (Phase
+  4), and notifications/receipts (Phase 5) — a webhook fires, but nothing
+  emails/SMS's the customer yet.
 - **E — Partial payments:** multiple payments against one bill until
-  fully paid. Not implemented — depends on the `Payment` model (Phase 3).
-  The `Bill` state machine already has `PARTIALLY_PAID`/`PAID` states
-  ready for Phase 3 to drive.
+  fully paid. **Implemented** — `apps.payments.services._allocate_to_bill`
+  transitions `ACTIVE → PARTIALLY_PAID → PAID` as successive payments are
+  allocated; tested with three sequential payments fully paying a bill.
 - **F — Provider failure:** timeout → UNKNOWN → reconciliation → final
-  status. Not implemented (Phase 3/4) — see
-  [PAYMENT_LIFECYCLE.md](PAYMENT_LIFECYCLE.md).
+  status. **Implemented up to "final status"** (Phase 3: timeout → UNKNOWN
+  → `query_payment()` → resolved) — see
+  [PAYMENT_LIFECYCLE.md](PAYMENT_LIFECYCLE.md). The *scheduled,
+  automatic* reconciliation backstop for payments that stay `UNKNOWN`
+  even after an explicit query is Phase 4
+  ([RECONCILIATION_SPEC.md](RECONCILIATION_SPEC.md)); today `UNKNOWN`
+  resolution is manual (a "Query provider" portal button).
 - **G — ERP integration:** external system authenticates, creates a bill,
-  gets a control number, receives a webhook. Not implemented (Phase 6).
+  gets a control number, receives a webhook. **Partially implemented**:
+  "receives a webhook" is real (Phase 3 — any tenant can register an
+  endpoint today and receive signed `bill.created`/`payment.successful`/
+  etc. deliveries). "External system authenticates, creates a bill, gets
+  a control number" via an API is still Phase 6 — only the server-rendered
+  portal can do those things today.
 
 ## Non-goals for Phase 1 (explicitly out of scope, then)
 
@@ -100,7 +115,7 @@ Billing, control numbers, payments, provider adapters, ledger,
 reconciliation, settlement, notifications, receipts, reports, and the
 external REST API. Any UI element that might imply these exist was
 labeled "Not yet implemented" rather than showing placeholder/fake data
-(build spec section 44). Billing and control numbers are now built
-(Phase 2, above) — payments, provider adapters, ledger, reconciliation,
-settlement, notifications, receipts, reports, and the API remain
-out of scope until their respective phases.
+(build spec section 44). Billing, control numbers, payments, the provider
+abstraction, and outbound webhooks are now built (Phases 2–3, above) —
+the ledger, reconciliation, settlement, notifications, receipts, reports,
+and the external API remain out of scope until their respective phases.
