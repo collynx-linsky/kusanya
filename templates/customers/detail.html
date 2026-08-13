@@ -15,10 +15,60 @@
             {% if not customer.is_active %} · <span class="badge text-bg-secondary">Inactive</span>{% endif %}
         </p>
     </div>
-    <a href="{% url 'customers:account-create' customer.pk %}" class="btn btn-primary">
-        <i class="bi bi-plus-lg"></i> New account
-    </a>
+    <div class="d-flex gap-2">
+        <div class="dropdown">
+            <button class="btn btn-outline-secondary" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Customer actions">
+                <i class="bi bi-three-dots"></i>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end">
+                <li><a class="dropdown-item" href="{% url 'customers:edit' customer.pk %}"><i class="bi bi-pencil me-2"></i>Edit</a></li>
+                <li><hr class="dropdown-divider"></li>
+                {% if customer.is_active %}
+                <li><button type="button" class="dropdown-item text-danger" data-bs-toggle="modal" data-bs-target="#kzDeactivateModal"><i class="bi bi-slash-circle me-2"></i>Deactivate</button></li>
+                {% else %}
+                <li>
+                    <form method="post" action="{% url 'customers:activate' customer.pk %}">
+                        {% csrf_token %}
+                        <button type="submit" class="dropdown-item"><i class="bi bi-check-circle me-2"></i>Reactivate</button>
+                    </form>
+                </li>
+                {% endif %}
+            </ul>
+        </div>
+        <button type="button" class="btn btn-primary"
+                hx-get="{% url 'customers:account-create' customer.pk %}"
+                hx-target="#kzModalBody"
+                data-bs-toggle="modal" data-bs-target="#kzModal">
+            <i class="bi bi-plus-lg"></i> New account
+        </button>
+    </div>
 </div>
+
+{% if customer.is_active %}
+<div class="modal fade" id="kzDeactivateModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title h5">Deactivate {{ customer.full_name }}?</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-0">
+                    Their accounts, bills, and payment history are kept — deactivating
+                    just marks them inactive. You can reactivate them at any time.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Keep active</button>
+                <form method="post" action="{% url 'customers:deactivate' customer.pk %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger">Yes, deactivate</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
 
 <div class="kz-card mb-4">
     <div class="kz-card-header"><h2>Overview</h2></div>

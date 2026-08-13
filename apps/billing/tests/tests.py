@@ -160,3 +160,87 @@ class TestBillPortalTenantIsolation:
 
         response = client.get("/bills/")
         assert b"Secret Fee" not in response.content
+
+
+@pytest.mark.django_db
+class TestBillListSearchAndFilter:
+    """apps.billing.views.bill_list -- the P1 extension of the P0
+    search/pagination pattern to a second reference case
+    (docs/DESIGN_SYSTEM.md)."""
+
+    def _login(self, client, make_user, make_tenant, make_membership):
+        tenant = make_tenant()
+        user = make_user(email="billing-manager@example.com")
+        make_membership(user, tenant)
+        client.force_login(user)
+        session = client.session
+        session["active_tenant_id"] = str(tenant.id)
+        session.save()
+        return tenant
+
+    def test_search_by_bill_number_substring(
+        self, client, make_user, make_tenant, make_membership, make_customer, make_customer_account
+    ):
+        tenant = self._login(client, make_user, make_tenant, make_membership)
+        account = make_customer_account(tenant, make_customer(tenant))
+        bill, _ = get_or_create_bill(
+            tenant=tenant, customer_account=account,
+            items=[{"description": "Fee", "unit_amount": Decimal("100")}],
+        )
+
+        response = client.get("/bills/", {"q": bill.bill_number[:6]})
+
+        assert response.status_code == 200
+        assert bill.bill_number.encode() in response.content
+
+    def test_search_by_exact_customer_name_finds_the_bill(
+        self, client, make_user, make_tenant, make_membership, make_customer, make_customer_account
+    ):
+        tenant = self._login(client, make_user, make_tenant, make_membership)
+        customer = make_customer(tenant, full_name="Amina Juma")
+        account = make_customer_account(tenant, customer)
+        bill, _ = get_or_create_bill(
+            tenant=tenant, customer_account=account,
+            items=[{"description": "Fee", "unit_amount": Decimal("100")}],
+        )
+
+        exact = client.get("/bills/", {"q": "Amina Juma"})
+        partial = client.get("/bills/", {"q": "Amina"})
+
+        assert bill.bill_number.encode() in exact.content
+        assert bill.bill_number.encode() not in partial.content
+
+    def test_status_filter_only_shows_matching_bills(
+        self, client, make_user, make_tenant, make_membership, make_customer, make_customer_account
+    ):
+        tenant = self._login(client, make_user, make_tenant, make_membership)
+        account = make_customer_account(tenant, make_customer(tenant))
+        active_bill, _ = get_or_create_bill(
+            tenant=tenant, customer_account=account,
+            items=[{"description": "Fee", "unit_amount": Decimal("100")}],
+        )
+        active_bill.transition_to(BillStatus.ACTIVE)
+        draft_bill, _ = get_or_create_bill(
+            tenant=tenant, customer_account=account, external_reference="DRAFT-1",
+            items=[{"description": "Other fee", "unit_amount": Decimal("200")}],
+        )
+
+        response = client.get("/bills/", {"status": BillStatus.ACTIVE})
+
+        assert active_bill.bill_number.encode() in response.content
+        assert draft_bill.bill_number.encode() not in response.content
+
+    def test_htmx_request_targeting_the_table_returns_only_the_partial(
+        self, client, make_user, make_tenant, make_membership, make_customer, make_customer_account
+    ):
+        tenant = self._login(client, make_user, make_tenant, make_membership)
+        account = make_customer_account(tenant, make_customer(tenant))
+        get_or_create_bill(
+            tenant=tenant, customer_account=account,
+            items=[{"description": "Fee", "unit_amount": Decimal("100")}],
+        )
+
+        response = client.get("/bills/", HTTP_HX_REQUEST="true", HTTP_HX_TARGET="kz-bill-table")
+
+        assert response.status_code == 200
+        assert b"kz-sidebar" not in response.content

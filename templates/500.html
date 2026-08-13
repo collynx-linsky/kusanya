@@ -2,10 +2,25 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>KUSANYA — Something went wrong</title>
     <style>
-        body { font-family: system-ui, sans-serif; text-align: center; padding: 4rem 1rem; color: #1a1a2e; }
-        .code { font-size: 3rem; font-weight: 700; }
+        /* Deliberately self-contained -- no static file, CDN, or
+           context-processor dependency. Django renders this template
+           with a bare Context (no request, no context processors) in
+           production, and it may render during an outage of the very
+           infrastructure (static files, database-backed context) that
+           the rest of the app depends on. See ARCHITECTURE_DECISIONS
+           ADR-033 and docs/DESIGN_SYSTEM.md. */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+            text-align: center;
+            padding: 5rem 1.5rem;
+            color: #0f172a;
+            background: #f8fafc;
+        }
+        .code { font-size: 2.5rem; font-weight: 700; color: #4f46e5; margin-bottom: 0.5rem; }
+        p { color: #64748b; }
     </style>
 </head>
 <body>

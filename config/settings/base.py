@@ -140,6 +140,7 @@ TEMPLATES = [
                 "django.contrib.messages.context_processors.messages",
                 "apps.tenants.context_processors.current_tenant",
                 "apps.core.context_processors.branding",
+                "apps.core.context_processors.topbar_alerts",
             ],
         },
     },

@@ -1105,3 +1105,65 @@ live-verified end-to-end over real HTTP against the running dev server
 (every major section's URL, the crispy-rendered customer form, and the
 HTMX exact-match search/empty-state/pagination behavior on the
 Customers reference implementation).
+
+## ADR-034: P1 (Enterprise UX) — filtering, modals, a real (not fabricated) notification bell, CRUD completion, error-page polish
+
+**Decision:** Built on P0's foundation (ADR-033): filtering (status
+dropdown alongside search, `apps.billing.views.bill_list` as a second
+reference case beyond Customers), two modal patterns (static
+Bootstrap for simple confirmations; HTMX-loaded for data-driven forms,
+using `HX-Redirect` on success so a submitted form actually navigates
+rather than getting AJAX-swapped into itself), a real topbar
+notification bell (`apps.core.context_processors.topbar_alerts`),
+skeleton loading states for HTMX-loaded modal content, `403`/`404`
+pages rewired onto the `empty_state` component, `500.html` deliberately
+left as the one page that does *not* extend `base.html`, and Customer
+CRUD completed (`customer_edit` + deactivate/activate replacing what
+was previously Create+Read only). Full breakdown in
+`docs/DESIGN_SYSTEM.md`.
+
+**Reason (notification bell, the one genuinely debatable item):** "add
+notifications" could easily have meant a stored, markable-as-read
+inbox — building that with no real event source feeding it, or seeding
+it with placeholder entries, would be exactly the "fake functionality"
+this project's build spec explicitly rules out (the same reasoning
+already applied to payment providers, ADR-014, and to monitoring,
+ADR-031). What *is* real and already computed elsewhere (open
+reconciliation exceptions on the tenant dashboard, pending tenant
+approvals on the platform dashboard) is now also surfaced as a live
+topbar alert — same data, a second honest presentation of it, not a new
+data source invented for the UI. A persistent inbox is a legitimate
+future feature; it needs its own model and its own design pass, not a
+placeholder built to satisfy a checklist item.
+
+**Reason (deactivate, not delete, for Customer CRUD):** the "never
+truly delete, only mark/compensate" principle this codebase already
+applies to every financial-event model (immutable records, ADR-006)
+extends to `Customer` even though it isn't itself a ledger entry — a
+customer with bills and payments attached cannot be hard-deleted
+without corrupting that history. `Customer.is_active` already existed
+on the model for exactly this; P1 just built the missing UI for it.
+
+**A real correctness detail, not just UX:** the HTMX-loaded-modal
+pattern's success path deliberately sets an `HX-Redirect` response
+header rather than relying on htmx's default handling of a 302. Without
+it, htmx would AJAX-fetch the redirect target and swap the *result*
+into the modal body — the modal would stay open, showing the customer
+detail page's content nested inside itself, instead of the browser
+actually navigating there. Verified live (both the `HX-Redirect` header
+value and, separately, that the created record actually appears on the
+resulting page) before considering the pattern proven.
+
+**Consequences:** Two more stale "not yet implemented" notices (the
+platform dashboard's, alongside the tenant dashboard's one already
+fixed in ADR-033) were corrected while those templates were open for
+other reasons — both referenced Phase 5/6 work that has been live for
+some time. Bills is now the second app fully carrying the
+search/filter/pagination pattern (not yet CRUD/modals, since bills are
+largely immutable once issued — cancel is the existing analog). 222/222
+tests passing (15 new: CRUD, HTMX-modal success/validation-error paths,
+search/filter on Bills, the notification context processor's real vs.
+empty states), Bandit clean, and every new interactive path
+(deactivate/reactivate, the HTMX modal's full create→redirect cycle,
+bill search/filter) was exercised over real HTTP against the running
+dev server with real data, not just asserted in tests.

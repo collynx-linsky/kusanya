@@ -1,8 +1,5 @@
 {% extends "base.html" %}
 {% block title %}Access denied{% endblock %}
 {% block content %}
-<div class="text-center py-5">
-    <h1 class="display-5">403</h1>
-    <p class="text-body-secondary">You don't have permission to do that.</p>
-</div>
+{% include "components/empty_state.html" with icon="bi-shield-lock" title="Access denied" body="You don't have permission to do that. If this seems wrong, check with whoever manages your account's roles." %}
 {% endblock %}

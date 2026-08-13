@@ -1,8 +1,9 @@
 # Design System
 
-P0 (Foundation) of the enterprise-UX rework — see ARCHITECTURE_DECISIONS
-ADR-033 for why this stayed Django Templates + Bootstrap 5 + HTMX rather
-than a SPA framework, and what tradeoff that constraint implies.
+P0 (Foundation) and P1 (Enterprise UX) of the enterprise-UX rework —
+see ARCHITECTURE_DECISIONS ADR-033 (P0) and ADR-034 (P1) for why this
+stayed Django Templates + Bootstrap 5 + HTMX rather than a SPA
+framework, and what tradeoff that constraint implies.
 
 This document is both a reference for the pieces already built and an
 honest map of what's migrated to the new patterns versus what still
@@ -191,28 +192,143 @@ uses): `.kz-table-wrap` > `.kz-table-toolbar` (search/filter controls) >
 Reference implementation: `apps/customers/views.py::customer_list` +
 `templates/customers/_table.html` (the HTMX-swappable partial) +
 `templates/customers/list.html` (the full-page wrapper that includes
-it).
+it). Extended to a second reference case in P1:
+`apps/billing/views.py::bill_list` (adds a status filter dropdown
+alongside search — see "Filtering" below).
+
+## Dashboard
+
+The tenant dashboard combines the P0 stat cards with a **real recent
+payments feed** (`apps.tenants.views.dashboard`'s `recent_payments`,
+last 5 by `initiated_at`, real ORM query — never a fabricated activity
+list). The platform (staff-only) dashboard got the same stat-card
+treatment. Both had a stale "not yet implemented" notice corrected
+while already being edited — see ADR-034.
+
+## Filtering
+
+A status filter (`<select>`) sits alongside search in the same toolbar
+form, both triggering the same HTMX partial-swap (`apps/billing/views.py::bill_list`
+is the reference — status is validated against `BillStatus.values`
+before hitting the query, so an invalid/tampered value is silently
+ignored rather than raising). The pattern generalizes to any model with
+a `TextChoices` status field: pass `status_choices` in context, render
+the `<select>`, filter with `.filter(status=status)` guarded by the
+same "is this actually a valid choice" check.
+
+## Modals / drawers
+
+Two patterns, used for different reasons — pick based on whether the
+modal's content depends on fresh server data:
+
+- **Static Bootstrap modal, no HTMX** — for a confirmation whose text
+  doesn't need a server round-trip (e.g. "cancel this bill?"). The
+  modal markup is already in the page; `data-bs-toggle="modal"` opens
+  it, a plain `<form method="post">` inside submits normally. Reference:
+  the cancel-bill confirmation on `templates/billing/detail.html`, and
+  the deactivate-customer confirmation on `templates/customers/detail.html`.
+- **HTMX-loaded modal** — for content that needs current server state
+  (a full create/edit form, in particular). A trigger element sets
+  `hx-get="..." hx-target="#kzModalBody"` alongside
+  `data-bs-toggle="modal" data-bs-target="#kzModal"` (the shared modal
+  shell lives once in `templates/base.html`) — clicking it fetches the
+  form fragment and swaps it into the modal body, showing a skeleton
+  placeholder (`components/skeleton_form.html`) while in flight. On
+  successful POST, the view sets an `HX-Redirect` response header
+  (`response["HX-Redirect"] = response.url`) rather than relying on the
+  default 302 handling — htmx would otherwise AJAX-fetch the redirect
+  target and swap *that* into the modal, which is never what "the form
+  succeeded, now show me the updated page" means. On a validation
+  error, the view re-renders just the form fragment (with errors) back
+  into the same target — the modal never closes on a failed submit.
+  Reference implementation: `apps.customers.views.account_create` (GET
+  returns `customers/_account_form_modal.html` for an HTMX request, a
+  full page otherwise — the same URL works both ways, so the feature
+  degrades gracefully with HTMX/JS unavailable) +
+  `templates/customers/detail.html`'s "New account" button.
+
+## Notifications (topbar alerts)
+
+The bell in the top bar is backed by `apps.core.context_processors.topbar_alerts`
+— a context processor computed on every authenticated request from
+**genuinely real, already-existing state**: open reconciliation
+exceptions (tenant-scoped) and pending institution approvals
+(platform-staff-scoped). This is deliberately *not* a stored/historical
+notification inbox with read/unread state — building one with no real
+backing data model, or faking entries, would violate this project's own
+"no fake functionality" rule. It answers "does anything need my
+attention right now," recomputed fresh each time, not "what happened
+recently." A persistent, markable-as-read inbox is a legitimate future
+feature (P2/P3 territory) but needs its own model and its own design
+pass, not a retrofit of this.
+
+## Loading states
+
+- **Global**: the P0 top progress bar covers any HTMX request.
+- **Search**: a spinner inside the search input's `input-group`
+  (`htmx-indicator`), scoped to just that control.
+- **HTMX-loaded modal content**: `components/skeleton_form.html` — a
+  generic pulsing-placeholder block (`.kz-skeleton`, defined in
+  `kusanya.css`) shown in `#kzModalBody` before any request has been
+  made, replaced by the real fragment once one loads. Generic
+  on purpose (not shaped to any specific form's field count) — it's a
+  loading placeholder, not a preview of the content about to arrive.
+
+## Empty / error states
+
+`components/empty_state.html` (P0) is now also what `403.html`/`404.html`
+render — access-denied and not-found are just empty states with a
+different icon/copy, not a special case. **`500.html` is deliberately
+the one page that does NOT extend `base.html`** and has no dependency on
+static files, context processors, or the database — Django renders it
+with a bare `Context()` (no request) in production, and it may be the
+page shown during an actual outage of the infrastructure (static
+files, DB-backed context, …) everything else here depends on. Confirmed
+directly: `render_to_string("500.html")` with zero context renders
+correctly standalone.
+
+## CRUD experience
+
+Customers went from Create+Read only (no way to edit a customer, or
+remove one from active use, from the portal at all) to full CRUD:
+
+- **Update**: `apps.customers.views.customer_edit`, reusing `CustomerForm`
+  with `instance=customer` — same form, same template, same validation
+  as create.
+- **Delete → deactivate**: `apps.customers.views.customer_deactivate`/`customer_activate`
+  toggle `Customer.is_active` rather than deleting the row. A hard
+  delete of a customer with bills/payments attached would corrupt
+  financial history — the same "never delete, only mark/compensate"
+  principle already applied to every other domain model here
+  (immutable financial records, ADR-006) extends naturally to Customer
+  even though it isn't itself a financial-event model. Both actions are
+  confirmed via a modal (see "Modals" above) before anything happens.
 
 ## Migration status
 
-**Fully migrated to every P0 pattern** (shell, search, pagination,
-crispy forms, empty states): the Customers app (`list`, `detail`,
-`form`) — the reference implementation everything above is described
-against. The tenant dashboard uses the new `stat_card` component.
-Login, MFA verify, and institution onboarding use the new
-`base_auth.html` minimal layout.
+**Fully migrated to every P0+P1 pattern** (shell, search, filtering,
+pagination, crispy forms, empty states, CRUD, modals): the Customers
+app (`list`, `detail`, `form`, edit, deactivate/activate, the HTMX
+account-creation modal) — the reference implementation everything above
+is described against.
 
-**Gets the new shell/tokens automatically, not yet migrated to the
-newer table/search/form patterns**: every other list/detail/form page
-across billing, payments, control numbers, ledger, revenue,
-reconciliation, settlement, webhooks, notifications, receipts, reports,
-API credentials, and platform-admin views. These inherit the sidebar,
-top bar, and design tokens simply by extending `base.html` (which every
-page already did), and Bootstrap components on them already read the
-new color/radius tokens — but their tables have no search/sort/pagination
-yet, and their forms use hand-written markup instead of crispy-forms.
-Extending the P0 patterns to each of these is real, bounded, mechanical
-work (the customers app is the template to copy), not a design
+**Migrated to search/filter/pagination, not yet to full CRUD or
+modals**: Bills (`billing/list.html` + `_table.html` — search, status
+filter, pagination; `billing/detail.html` — modal-confirmed cancel, the
+design-system card/table styling, `status_badge_class`). Bills has no
+Update/Delete UI yet (bills are largely immutable once issued by
+design — cancel is the closest analog and already exists).
+
+**Gets the new shell/tokens/notification-bell automatically, not yet
+migrated to the newer table/search/form/CRUD patterns**: payments,
+control numbers, ledger, revenue, reconciliation, settlement, webhooks,
+notifications, receipts, reports, API credentials, and platform-admin
+views. These inherit the sidebar, top bar, design tokens, and the real
+topbar-alerts bell simply by extending `base.html` (which every page
+already did) — but their tables have no search/sort/pagination yet, and
+their forms use hand-written markup instead of crispy-forms. Extending
+the pattern to each of these is real, bounded, mechanical work (Bills
+is now a *second* worked example alongside Customers, covering the
+"search + filter, no CRUD" shape many of these will need), not a design
 question — a natural next increment, not attempted here to avoid
-rushing ~15 templates without individual live verification the way
-customers got.
+rushing ~14 remaining templates without individual live verification.

@@ -18,6 +18,32 @@
 
         {% if user.is_authenticated %}
         <div class="dropdown">
+            <button class="btn btn-sm btn-light border position-relative" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Alerts">
+                <i class="bi bi-bell"></i>
+                {% if topbar_alerts %}
+                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill text-bg-danger kz-alert-badge">
+                    {{ topbar_alerts|length }}
+                </span>
+                {% endif %}
+            </button>
+            <div class="dropdown-menu dropdown-menu-end p-0 kz-alert-menu">
+                <div class="px-3 py-2 border-bottom fw-semibold small text-uppercase text-body-secondary">Alerts</div>
+                {% if topbar_alerts %}
+                    {% for alert in topbar_alerts %}
+                    <a class="dropdown-item d-flex align-items-start gap-2 py-2" href="{% url alert.url_name %}">
+                        <i class="bi {{ alert.icon }} text-{{ alert.level }} mt-1"></i>
+                        <span>{{ alert.text }}</span>
+                    </a>
+                    {% endfor %}
+                {% else %}
+                    <div class="px-3 py-3 text-body-secondary small">Nothing needs your attention right now.</div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        {% if user.is_authenticated %}
+        <div class="dropdown">
             <button class="btn btn-sm btn-light border d-flex align-items-center gap-2" type="button" data-bs-toggle="dropdown" aria-expanded="false">
                 <span class="kz-avatar">{{ user.email|slice:":1"|upper }}</span>
                 <span class="d-none d-md-inline">{{ user.email }}</span>

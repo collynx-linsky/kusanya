@@ -1,0 +1,61 @@
+{% load kusanya_ui %}
+<div class="kz-table-wrap" id="kz-bill-table">
+    <div class="kz-table-toolbar">
+        <form class="d-flex gap-2" role="search"
+              hx-get="{% url 'billing:list' %}"
+              hx-target="#kz-bill-table"
+              hx-select="#kz-bill-table"
+              hx-swap="outerHTML"
+              hx-trigger="keyup changed delay:400ms from:#kz-bill-search, search from:#kz-bill-search, change from:#kz-bill-status"
+              hx-push-url="true"
+              hx-indicator="#kz-bill-search-indicator">
+            <div class="input-group input-group-sm kz-search-input">
+                <span class="input-group-text bg-transparent border-end-0"><i class="bi bi-search"></i></span>
+                <input type="search" id="kz-bill-search" name="q" value="{{ query }}"
+                       class="form-control border-start-0" placeholder="Bill #, reference, or exact customer name…"
+                       aria-label="Search bills">
+                <span class="input-group-text bg-transparent border-start-0 htmx-indicator" id="kz-bill-search-indicator">
+                    <span class="spinner-border spinner-border-sm text-secondary" role="status"></span>
+                </span>
+            </div>
+            <select name="status" id="kz-bill-status" class="form-select form-select-sm kz-status-select" aria-label="Filter by status">
+                <option value="">All statuses</option>
+                {% for value, label in status_choices %}
+                <option value="{{ value }}" {% if status == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </form>
+        <div class="kz-table-toolbar-filters">
+            {% if query or status %}
+            <span class="badge text-bg-light border">{{ page_obj.paginator.count }} result{{ page_obj.paginator.count|pluralize }}</span>
+            <a href="{% url 'billing:list' %}" class="small">Clear</a>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if page_obj.object_list %}
+    <div class="table-responsive">
+        <table class="table kz-table mb-0">
+            <thead>
+                <tr><th>Bill #</th><th>Account</th><th>Amount</th><th>Status</th><th>Control number</th></tr>
+            </thead>
+            <tbody>
+                {% for bill in page_obj.object_list %}
+                <tr>
+                    <td><a href="{% url 'billing:detail' bill.pk %}">{{ bill.bill_number }}</a></td>
+                    <td>{{ bill.customer_account }}</td>
+                    <td>{{ bill.total_amount }} {{ bill.currency }}</td>
+                    <td><span class="badge {{ bill.status|status_badge_class }}">{{ bill.get_status_display }}</span></td>
+                    <td>{{ bill.control_number.value|default:"—" }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% include "components/pagination.html" with page_obj=page_obj %}
+    {% elif query or status %}
+    {% include "components/empty_state.html" with icon="bi-search" title="No matching bills" body="Search matches the bill number, reference, or the complete customer name — not a partial name match." %}
+    {% else %}
+    {% include "components/empty_state.html" with icon="bi-receipt" title="No bills yet" body="Bills appear here once you issue one." action_url=bill_create_url action_label="New bill" %}
+    {% endif %}
+</div>

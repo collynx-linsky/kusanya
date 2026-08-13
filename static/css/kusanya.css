@@ -331,6 +331,10 @@ a.kz-stat-card:hover {
   max-width: 100%;
 }
 
+.kz-status-select {
+  width: auto;
+}
+
 .kz-table-toolbar-filters {
   display: flex;
   align-items: center;
@@ -516,6 +520,14 @@ a.kz-stat-card:hover {
 .display-6,
 .kz-stat-value {
   font-variant-numeric: tabular-nums;
+}
+
+.kz-alert-badge {
+  font-size: 0.55rem;
+}
+
+.kz-alert-menu {
+  width: 20rem;
 }
 
 .kz-avatar {

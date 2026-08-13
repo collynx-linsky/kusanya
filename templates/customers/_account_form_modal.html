@@ -1,0 +1,16 @@
+{% load crispy_forms_tags %}
+<div class="modal-header">
+    <h2 class="modal-title h5">New account for {{ customer.full_name }}</h2>
+    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+</div>
+<form method="post" action="{% url 'customers:account-create' customer.pk %}"
+      hx-post="{% url 'customers:account-create' customer.pk %}" hx-target="#kzModalBody">
+    {% csrf_token %}
+    <div class="modal-body">
+        {{ form|crispy }}
+    </div>
+    <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="submit" class="btn btn-primary">Create account</button>
+    </div>
+</form>

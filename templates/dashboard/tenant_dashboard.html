@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load kusanya_ui %}
 {% block title %}{{ tenant.name }} dashboard{% endblock %}
 {% block breadcrumb %}<span class="text-body">Dashboard</span>{% endblock %}
 {% block content %}
@@ -47,6 +48,29 @@
         {% url 'control_numbers:list' as control_numbers_url %}
         {% include "components/stat_card.html" with label="Control numbers" value=control_number_count href=control_numbers_url %}
     </div>
+</div>
+
+<h2 class="kz-nav-section-label px-0 mt-4 mb-2">Recent activity</h2>
+<div class="kz-table-wrap">
+    {% if recent_payments %}
+    <div class="table-responsive">
+        <table class="table kz-table mb-0">
+            <thead><tr><th>Reference</th><th>Amount</th><th>Status</th><th>Initiated</th></tr></thead>
+            <tbody>
+                {% for payment in recent_payments %}
+                <tr>
+                    <td><a href="{% url 'payments:detail' payment.pk %}">{{ payment.merchant_reference }}</a></td>
+                    <td>{{ payment.amount }} {{ payment.currency }}</td>
+                    <td><span class="badge {{ payment.status|status_badge_class }}">{{ payment.get_status_display }}</span></td>
+                    <td class="text-body-secondary">{{ payment.initiated_at|date:"d M Y, H:i" }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    {% include "components/empty_state.html" with icon="bi-credit-card" title="No payments yet" body="Payment activity will show up here as customers pay their bills." %}
+    {% endif %}
 </div>
 
 <div class="alert alert-secondary mt-4">

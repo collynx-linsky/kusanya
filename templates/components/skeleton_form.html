@@ -1,0 +1,15 @@
+{% comment %}
+Usage: {% include "components/skeleton_form.html" %}
+Generic placeholder shown while HTMX-loaded modal content
+(#kzModalBody) is in flight — see docs/DESIGN_SYSTEM.md's "Loading
+states" section. Not tied to any specific form's field count/shape,
+intentionally — it's a skeleton, not a preview.
+{% endcomment %}
+<div class="kz-skeleton-form" aria-hidden="true" aria-label="Loading">
+    <div class="kz-skeleton mb-2" style="height: 0.9rem; width: 40%;"></div>
+    <div class="kz-skeleton mb-3" style="height: 2.25rem;"></div>
+    <div class="kz-skeleton mb-2" style="height: 0.9rem; width: 30%;"></div>
+    <div class="kz-skeleton mb-3" style="height: 2.25rem;"></div>
+    <div class="kz-skeleton mb-2" style="height: 0.9rem; width: 45%;"></div>
+    <div class="kz-skeleton" style="height: 2.25rem;"></div>
+</div>

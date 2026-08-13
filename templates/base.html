@@ -15,6 +15,21 @@
     <div class="kz-progress-bar" id="kzProgressBar"></div>
     <div class="kz-toast-region" id="kz-toasts"></div>
 
+    {# Shared HTMX-loaded modal shell -- a trigger sets hx-get/hx-target="#kzModalBody"
+       alongside data-bs-toggle="modal" data-bs-target="#kzModal". See
+       docs/DESIGN_SYSTEM.md's "Modals" section and
+       apps.customers.views.account_create for the reference
+       implementation (customer detail page's "New account" button). #}
+    <div class="modal fade" id="kzModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-body p-4" id="kzModalBody">
+                    {% include "components/skeleton_form.html" %}
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="kz-shell">
         {% include "partials/sidebar.html" %}
         <div class="kz-main">

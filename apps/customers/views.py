@@ -97,8 +97,59 @@ def customer_create(request):
 
 @login_required
 @require_tenant_role(*_CAN_MANAGE)
+def customer_edit(request, pk):
+    customer = get_object_or_404(Customer, pk=pk, tenant=request.tenant)
+    if request.method == "POST":
+        form = CustomerForm(request.POST, instance=customer)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f"Customer '{customer.full_name}' updated.")
+            return redirect("customers:detail", pk=customer.pk)
+    else:
+        form = CustomerForm(instance=customer)
+    return render(request, "customers/form.html", {"form": form, "title": f"Edit {customer.full_name}"})
+
+
+@login_required
+@require_tenant_role(*_CAN_MANAGE)
+def customer_deactivate(request, pk):
+    """Deactivation, not deletion — a Customer with bills/payments
+    attached can never be hard-deleted without corrupting financial
+    history (same principle as every other domain model here); `is_active`
+    is the correct "remove from active use" analog, already on the model."""
+    customer = get_object_or_404(Customer, pk=pk, tenant=request.tenant)
+    if request.method == "POST":
+        customer.is_active = False
+        customer.save(update_fields=["is_active", "updated_at"])
+        messages.success(request, f"'{customer.full_name}' deactivated.")
+    return redirect("customers:detail", pk=customer.pk)
+
+
+@login_required
+@require_tenant_role(*_CAN_MANAGE)
+def customer_activate(request, pk):
+    customer = get_object_or_404(Customer, pk=pk, tenant=request.tenant)
+    if request.method == "POST":
+        customer.is_active = True
+        customer.save(update_fields=["is_active", "updated_at"])
+        messages.success(request, f"'{customer.full_name}' reactivated.")
+    return redirect("customers:detail", pk=customer.pk)
+
+
+@login_required
+@require_tenant_role(*_CAN_MANAGE)
 def account_create(request, customer_pk):
+    """Reference implementation of the HTMX-loaded-modal pattern
+    (docs/DESIGN_SYSTEM.md) — the customer detail page's "New account"
+    button loads this view's GET response straight into the shared
+    #kzModal shell instead of a full page navigation. Progressive
+    enhancement: a direct (non-HTMX) request to this same URL still
+    renders a complete standalone page, so the feature works with
+    HTMX/JS unavailable too — nothing here is modal-only functionality.
+    """
     customer = get_object_or_404(Customer, pk=customer_pk, tenant=request.tenant)
+    is_htmx = request.headers.get("HX-Request") == "true"
+
     if request.method == "POST":
         form = CustomerAccountForm(request.POST, tenant=request.tenant)
         if form.is_valid():
@@ -115,9 +166,28 @@ def account_create(request, customer_pk):
                 messages.success(request, f"Account '{account.name}' created.")
             else:
                 messages.info(request, "An account with this reference already exists.")
-            return redirect("customers:detail", pk=customer.pk)
+            response = redirect("customers:detail", pk=customer.pk)
+            if is_htmx:
+                # A plain 302 would make htmx AJAX-fetch the target and
+                # swap it into #kzModalBody -- HX-Redirect instead tells
+                # htmx to perform a real browser navigation, which is
+                # what "form succeeded, now show the updated page" means
+                # here (the modal closes because the page reloads).
+                response["HX-Redirect"] = response.url
+            return response
+        elif is_htmx:
+            # Validation failed inside the modal -- re-render just the
+            # form fragment with errors, don't navigate anywhere.
+            return render(
+                request,
+                "customers/_account_form_modal.html",
+                {"form": form, "customer": customer},
+            )
     else:
         form = CustomerAccountForm(tenant=request.tenant)
+
+    if is_htmx:
+        return render(request, "customers/_account_form_modal.html", {"form": form, "customer": customer})
     return render(
         request,
         "customers/form.html",

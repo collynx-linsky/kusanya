@@ -97,6 +97,11 @@ def dashboard(request):
         "open_exception_count": ReconciliationException.objects.filter(
             tenant=tenant, status=ExceptionStatus.OPEN
         ).count(),
+        # Real, most-recent-first activity — not a fabricated feed. See
+        # docs/DESIGN_SYSTEM.md's "Dashboard" section.
+        "recent_payments": Payment.objects.filter(tenant=tenant)
+        .select_related("control_number")
+        .order_by("-initiated_at")[:5],
     }
     return render(request, "dashboard/tenant_dashboard.html", context)
 

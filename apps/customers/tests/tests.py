@@ -202,3 +202,128 @@ class TestCustomerListSearchAndPagination:
         assert page_one.context["page_obj"].paginator.count == 30
         assert page_one.context["page_obj"].paginator.num_pages == 2
         assert len(page_two.context["page_obj"].object_list) == 5
+
+
+@pytest.mark.django_db
+class TestCustomerCrud:
+    """apps.customers.views.customer_edit/deactivate/activate — the
+    Update half of CRUD that customers previously only had Create+Read
+    for (docs/DESIGN_SYSTEM.md, P1 item 15)."""
+
+    def _login_as_manager(self, client, make_user, make_tenant, make_membership):
+        from apps.tenants.models import TenantRole
+
+        tenant = make_tenant()
+        user = make_user(email="manager@example.com")
+        make_membership(user, tenant, role=TenantRole.ADMIN)
+        client.force_login(user)
+        session = client.session
+        session["active_tenant_id"] = str(tenant.id)
+        session.save()
+        return tenant
+
+    def test_edit_updates_the_customer(self, client, make_user, make_tenant, make_membership):
+        tenant = self._login_as_manager(client, make_user, make_tenant, make_membership)
+        customer = Customer.objects.create(tenant=tenant, full_name="Old Name")
+
+        response = client.post(
+            f"/customers/{customer.pk}/edit/",
+            {"full_name": "New Name", "email": "", "phone_number": "", "external_reference": ""},
+        )
+
+        assert response.status_code == 302
+        customer.refresh_from_db()
+        assert customer.full_name == "New Name"
+
+    def test_deactivate_then_activate_round_trips_is_active(
+        self, client, make_user, make_tenant, make_membership
+    ):
+        tenant = self._login_as_manager(client, make_user, make_tenant, make_membership)
+        customer = Customer.objects.create(tenant=tenant, full_name="Amina Juma")
+        assert customer.is_active is True
+
+        client.post(f"/customers/{customer.pk}/deactivate/")
+        customer.refresh_from_db()
+        assert customer.is_active is False
+
+        client.post(f"/customers/{customer.pk}/activate/")
+        customer.refresh_from_db()
+        assert customer.is_active is True
+
+    def test_deactivating_does_not_delete_the_customer_or_its_accounts(
+        self, client, make_user, make_tenant, make_membership
+    ):
+        tenant = self._login_as_manager(client, make_user, make_tenant, make_membership)
+        customer = Customer.objects.create(tenant=tenant, full_name="Amina Juma")
+        CustomerAccount.objects.create(tenant=tenant, customer=customer, name="Account 1")
+
+        client.post(f"/customers/{customer.pk}/deactivate/")
+
+        assert Customer.objects.filter(pk=customer.pk).exists()
+        assert customer.accounts.count() == 1
+
+
+@pytest.mark.django_db
+class TestAccountCreateHtmxModal:
+    """apps.customers.views.account_create — the reference
+    HTMX-loaded-modal implementation (docs/DESIGN_SYSTEM.md)."""
+
+    def _login(self, client, make_user, make_tenant, make_membership):
+        from apps.tenants.models import TenantRole
+
+        tenant = make_tenant()
+        user = make_user(email="manager2@example.com")
+        make_membership(user, tenant, role=TenantRole.ADMIN)
+        client.force_login(user)
+        session = client.session
+        session["active_tenant_id"] = str(tenant.id)
+        session.save()
+        return tenant, Customer.objects.create(tenant=tenant, full_name="Amina Juma")
+
+    def test_htmx_get_returns_only_the_modal_form_fragment(
+        self, client, make_user, make_tenant, make_membership
+    ):
+        tenant, customer = self._login(client, make_user, make_tenant, make_membership)
+
+        response = client.get(f"/customers/{customer.pk}/accounts/new/", HTTP_HX_REQUEST="true")
+
+        assert response.status_code == 200
+        assert b"kz-sidebar" not in response.content
+        assert b"<form" in response.content
+
+    def test_non_htmx_get_returns_the_full_page(self, client, make_user, make_tenant, make_membership):
+        tenant, customer = self._login(client, make_user, make_tenant, make_membership)
+
+        response = client.get(f"/customers/{customer.pk}/accounts/new/")
+
+        assert response.status_code == 200
+        assert b"kz-sidebar" in response.content
+
+    def test_htmx_post_success_sets_hx_redirect_header(
+        self, client, make_user, make_tenant, make_membership
+    ):
+        tenant, customer = self._login(client, make_user, make_tenant, make_membership)
+
+        response = client.post(
+            f"/customers/{customer.pk}/accounts/new/",
+            {"name": "2026 fees", "revenue_source": "", "external_reference": ""},
+            HTTP_HX_REQUEST="true",
+        )
+
+        assert response.status_code == 302
+        assert response["HX-Redirect"] == response.url
+
+    def test_htmx_post_validation_error_rerenders_the_fragment(
+        self, client, make_user, make_tenant, make_membership
+    ):
+        tenant, customer = self._login(client, make_user, make_tenant, make_membership)
+
+        response = client.post(
+            f"/customers/{customer.pk}/accounts/new/",
+            {"name": "", "revenue_source": "", "external_reference": ""},
+            HTTP_HX_REQUEST="true",
+        )
+
+        assert response.status_code == 200
+        assert b"kz-sidebar" not in response.content
+        assert "HX-Redirect" not in response

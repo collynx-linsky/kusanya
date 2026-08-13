@@ -1,79 +1,47 @@
 {% extends "base.html" %}
 {% block title %}Platform dashboard{% endblock %}
+{% block breadcrumb %}<span class="text-body">Platform dashboard</span>{% endblock %}
 {% block content %}
-<h1 class="h3 mb-4">Platform dashboard</h1>
+<div class="kz-page-header">
+    <h1 class="kz-page-title">Platform dashboard</h1>
+</div>
 
 {% if open_reconciliation_exceptions %}
-<div class="alert alert-warning">
-    <strong>{{ open_reconciliation_exceptions }} open reconciliation exception(s)</strong> across all institutions.
+<div class="alert alert-warning d-flex align-items-center gap-2">
+    <i class="bi bi-exclamation-triangle-fill"></i>
+    <strong>{{ open_reconciliation_exceptions }} open reconciliation exception(s)</strong>&nbsp;across all institutions.
 </div>
 {% endif %}
 
-<h2 class="h6 text-uppercase text-body-secondary">Institutions</h2>
+<h2 class="kz-nav-section-label px-0">Institutions</h2>
 <div class="row g-3">
     <div class="col-6 col-lg-3">
-        <div class="card shadow-sm h-100">
-            <div class="card-body">
-                <div class="text-body-secondary small text-uppercase">Institutions</div>
-                <div class="display-6">{{ total_tenants }}</div>
-            </div>
-        </div>
+        {% include "components/stat_card.html" with label="Institutions" value=total_tenants %}
     </div>
     <div class="col-6 col-lg-3">
-        <div class="card shadow-sm h-100">
-            <div class="card-body">
-                <div class="text-body-secondary small text-uppercase">Active</div>
-                <div class="display-6">{{ active_tenants }}</div>
-            </div>
-        </div>
+        {% include "components/stat_card.html" with label="Active" value=active_tenants %}
     </div>
     <div class="col-6 col-lg-3">
-        <div class="card shadow-sm h-100">
-            <div class="card-body">
-                <div class="text-body-secondary small text-uppercase">Pending approval</div>
-                <div class="display-6">{{ pending_tenants }}</div>
-            </div>
-        </div>
+        {% url 'tenants:pending-tenants' as pending_url %}
+        {% include "components/stat_card.html" with label="Pending approval" value=pending_tenants href=pending_url %}
     </div>
     <div class="col-6 col-lg-3">
-        <div class="card shadow-sm h-100">
-            <div class="card-body">
-                <div class="text-body-secondary small text-uppercase">Active memberships</div>
-                <div class="display-6">{{ total_users_with_access }}</div>
-            </div>
-        </div>
+        {% include "components/stat_card.html" with label="Active memberships" value=total_users_with_access %}
     </div>
 </div>
 
-<h2 class="h6 text-uppercase text-body-secondary mt-4">Collections &amp; revenue</h2>
+<h2 class="kz-nav-section-label px-0 mt-4">Collections &amp; revenue</h2>
 <div class="row g-3">
     <div class="col-6 col-lg-3">
-        <a href="{% url 'revenue:platform-dashboard' %}" class="text-decoration-none text-body">
-        <div class="card shadow-sm h-100">
-            <div class="card-body">
-                <div class="text-body-secondary small text-uppercase">Platform revenue</div>
-                <div class="display-6">{{ total_platform_revenue }}</div>
-            </div>
-        </div>
-        </a>
+        {% url 'revenue:platform-dashboard' as platform_revenue_url %}
+        {% include "components/stat_card.html" with label="Platform revenue" value=total_platform_revenue href=platform_revenue_url %}
     </div>
     <div class="col-6 col-lg-3">
-        <div class="card shadow-sm h-100">
-            <div class="card-body">
-                <div class="text-body-secondary small text-uppercase">Successful payments</div>
-                <div class="display-6">{{ successful_payment_count }}</div>
-            </div>
-        </div>
+        {% include "components/stat_card.html" with label="Successful payments" value=successful_payment_count %}
     </div>
     <div class="col-6 col-lg-3">
-        <a href="{% url 'settlement:platform-list' %}" class="text-decoration-none text-body">
-        <div class="card shadow-sm h-100">
-            <div class="card-body">
-                <div class="text-body-secondary small text-uppercase">Settlement batches</div>
-                <div class="display-6">→</div>
-            </div>
-        </div>
-        </a>
+        {% url 'settlement:platform-list' as settlement_url %}
+        {% include "components/stat_card.html" with label="Settlement batches" value="View" href=settlement_url %}
     </div>
 </div>
 
@@ -82,10 +50,9 @@
 </div>
 
 <div class="alert alert-secondary mt-4">
-    <strong>Not yet implemented:</strong> notifications and receipts
-    (Phase 5), the external API for ERP integrations (Phase 6). Billing,
-    payments, the ledger, revenue, reconciliation, and settlement are all
-    fully functional — against the MOCK/SANDBOX provider only. See
-    docs/PRODUCT_REQUIREMENTS.md.
+    <i class="bi bi-info-circle"></i>
+    Payments run against the MOCK/SANDBOX provider only — see
+    <code>docs/PAYMENT_PROVIDER_ARCHITECTURE.md</code> for the roadmap
+    toward a licensed provider.
 </div>
 {% endblock %}

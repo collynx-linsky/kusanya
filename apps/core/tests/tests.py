@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 import pytest
 from django.contrib.auth.models import AnonymousUser
 from django.core.cache import cache
@@ -291,3 +293,81 @@ class TestKusanyaUiTemplateTags:
         result = querystring_with({"request": request}, page=None)
         assert "page" not in result
         assert "q=amina" in result
+
+
+@pytest.mark.django_db
+class TestTopbarAlertsContextProcessor:
+    """apps.core.context_processors.topbar_alerts -- the notification
+    bell backs genuinely real, live-computed state (open reconciliation
+    exceptions, pending tenant approvals), never a fabricated feed. See
+    docs/DESIGN_SYSTEM.md's "Notifications" section."""
+
+    def test_no_alerts_when_nothing_needs_attention(self, client, make_user, make_tenant, make_membership):
+        tenant = make_tenant()
+        user = make_user(email="quiet@example.com")
+        make_membership(user, tenant)
+        client.force_login(user)
+        session = client.session
+        session["active_tenant_id"] = str(tenant.id)
+        session.save()
+
+        response = client.get("/customers/")
+
+        assert response.context["topbar_alerts"] == []
+
+    def test_open_reconciliation_exception_surfaces_as_a_real_alert(
+        self, client, make_user, make_tenant, make_membership, make_bill_with_control_number, mock_provider
+    ):
+        from apps.payments.models import Payment
+        from apps.reconciliation.models import ExceptionStatus, ExceptionType, ReconciliationException
+
+        tenant = make_tenant()
+        user = make_user(email="ops@example.com")
+        make_membership(user, tenant)
+        client.force_login(user)
+        session = client.session
+        session["active_tenant_id"] = str(tenant.id)
+        session.save()
+
+        _, control_number = make_bill_with_control_number(tenant)
+        payment = Payment.objects.create(
+            tenant=tenant, control_number=control_number, provider=mock_provider, amount=Decimal("500000")
+        )
+        ReconciliationException.objects.create(
+            tenant=tenant, payment=payment, status=ExceptionStatus.OPEN,
+            exception_type=ExceptionType.STUCK_UNKNOWN,
+        )
+
+        response = client.get("/customers/")
+
+        alerts = response.context["topbar_alerts"]
+        assert len(alerts) == 1
+        assert "1 open reconciliation exception" in alerts[0]["text"]
+
+    def test_pending_tenant_surfaces_only_for_platform_staff(
+        self, client, make_user, make_tenant, make_membership, make_platform_role
+    ):
+        from apps.tenants.models import Tenant
+        from apps.users.models import PlatformRole
+
+        tenant = make_tenant()
+        Tenant.objects.create(name="Awaiting Co", contact_email="a@example.com", status=Tenant.Status.PENDING)
+        user = make_user(email="staffmember@example.com")
+        user.is_staff = True
+        user.save()
+        make_membership(user, tenant)
+        make_platform_role(user, role=PlatformRole.OPERATIONS_ADMIN)
+        client.force_login(user)
+        session = client.session
+        session["active_tenant_id"] = str(tenant.id)
+        session.save()
+
+        response = client.get("/customers/")
+
+        alerts = response.context["topbar_alerts"]
+        assert any("awaiting approval" in a["text"] for a in alerts)
+
+    def test_anonymous_requests_get_no_alerts_key_populated(self, client):
+        response = client.get("/accounts/login/")
+        # context processor returns {} for anonymous -- no KeyError, no crash
+        assert response.status_code == 200
