@@ -18,6 +18,13 @@ PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
 CELERY_TASK_ALWAYS_EAGER = True
 CELERY_TASK_EAGER_PROPAGATES = True
 
+# Disabled for the general suite — many unrelated tests make anonymous,
+# pre-auth requests (login, MFA verify) that all share the test client's
+# IP, and would otherwise accumulate toward the same rate-limit window
+# across the whole run. apps.core.tests exercises the middleware directly
+# with an explicit low limit instead of relying on this global setting.
+REQUEST_RATE_LIMIT = 0
+
 EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
 
 CACHES = {

@@ -99,6 +99,7 @@ MIDDLEWARE = [
     # 2. Tenant resolution must run after auth (needs request.user) and
     #    before views execute.
     "apps.core.middleware.CorrelationIdMiddleware",
+    "apps.core.ratelimit.RequestRateLimitMiddleware",
     "apps.tenants.middleware.TenantResolutionMiddleware",
     "apps.audit.middleware.AuditContextMiddleware",
 ]
@@ -164,6 +165,19 @@ CELERY_RESULT_SERIALIZER = "json"
 CELERY_TIMEZONE = "UTC"
 CELERY_TASK_ALWAYS_EAGER = env.bool("CELERY_TASK_ALWAYS_EAGER", default=False)
 CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
+
+# ---------------------------------------------------------------------------
+# General request rate limiting (apps.core.ratelimit) — see
+# ARCHITECTURE_DECISIONS ADR-030. Distinct from and in addition to
+# apps.accounts.throttle (login/MFA brute force) and the API's own DRF
+# throttling (Phase 6, apps.api.throttling) — this covers everything
+# else: ordinary portal/dashboard requests. Deliberately generous; set
+# REQUEST_RATE_LIMIT=0 to disable entirely (e.g. load testing).
+# ---------------------------------------------------------------------------
+
+REQUEST_RATE_LIMIT = env.int("REQUEST_RATE_LIMIT", default=120)
+REQUEST_RATE_LIMIT_WINDOW_SECONDS = env.int("REQUEST_RATE_LIMIT_WINDOW_SECONDS", default=60)
+REQUEST_RATE_LIMIT_EXEMPT_PREFIXES = ("/healthz", "/static/", "/media/", "/api/")
 
 # ---------------------------------------------------------------------------
 # Password validation

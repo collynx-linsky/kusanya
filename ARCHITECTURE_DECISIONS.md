@@ -854,3 +854,38 @@ excluded, only migrations/tests) — a genuinely risky pattern introduced
 later (e.g. real string-built SQL, `eval`, a hardcoded real-looking
 secret) will fail CI the same way this first run's false positives did,
 which is the intended behavior.
+
+## ADR-030: General request rate limiting is a fixed-window cache counter middleware, not a third-party library
+
+**Decision:** `apps.core.ratelimit.RequestRateLimitMiddleware` counts
+requests per client (authenticated user ID, else IP) in a fixed 60-second
+window via the existing cache backend, rejecting with `429` past
+`REQUEST_RATE_LIMIT` (120/minute by default). It sits alongside, not in
+place of, two existing purpose-specific throttles:
+`apps.accounts.throttle` (login/MFA brute-force lockout, ADR from Phase
+7) and the API's own DRF throttling (Phase 6). It fails open on any
+cache error.
+
+**Reason:** The gap was real — ordinary portal/dashboard views (bill
+lookups, control-number pages, tenant onboarding forms) had no request
+volume limit at all, unlike the API and the login/MFA paths. A
+general-purpose library (`django-ratelimit`, `django-axes`) would add a
+dependency for something the codebase already had the primitive for —
+`apps.accounts.throttle` already proved the cache-counter pattern works
+correctly for this project's actual cache backend (Redis) and deployment
+shape. Writing ~40 lines against a pattern already in production use is
+less risk than a new dependency with its own configuration surface.
+
+**Consequences:** The limit is deliberately generous (120/min) — this is
+a blunt instrument against scripted abuse, not a precision tool; a
+legitimate user issuing rapid HTMX partial-page requests should never
+hit it in practice, but a single, generous, global number can't be
+correctly tuned per-endpoint (a bill-lookup page and a dashboard-summary
+page have different legitimate request rates). Fixed-window counting
+(not sliding-window/token-bucket) means a client can in principle send
+close to `2 × limit` requests across a window boundary — an accepted
+imprecision for a defense-in-depth control, not the primary defense
+against any specific attack. `/api/` is excluded from this middleware
+entirely (the API's DRF throttling already covers it, with different,
+more precise per-credential semantics) to avoid two different rate
+limiters disagreeing about the same request.

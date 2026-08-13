@@ -75,6 +75,10 @@ overstating any of these would be its own security problem.
   the existing correlation ID.
 - **Deeper health check** — `/healthz/` independently pings PostgreSQL,
   the cache, and the Celery broker (previously database + cache only).
+- **General request rate limiting** — `apps.core.ratelimit.RequestRateLimitMiddleware`
+  covers ordinary portal/dashboard requests (120/minute per user or IP by
+  default), on top of the existing login/MFA lockout and the API's own
+  DRF throttling. Fails open on a cache outage. See ADR-030.
 
 ## Configured but not yet exercised
 
@@ -94,10 +98,6 @@ overstating any of these would be its own security problem.
   classified as requiring it, but payment-adjacent PII should be
   revisited against Tanzania's Personal Data Protection Act obligations —
   see [compliance/REGULATORY_ASSUMPTIONS.md](compliance/REGULATORY_ASSUMPTIONS.md).
-- **Rate limiting beyond login/MFA** — the API layer has per-credential
-  throttling (Phase 6, `apps.api.throttling`) and login/MFA now has
-  brute-force lockout (Phase 7), but ordinary authenticated web views have
-  no general request-rate limiting.
 - **Monitoring/alerting, intrusion detection** — `apps.core.views.health_check`
   is a real liveness/readiness probe (database, cache, and Celery broker,
   Phase 7), but nothing is actually polling it, and there's no alerting,
