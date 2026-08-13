@@ -1,0 +1,44 @@
+{% comment %}
+Usage: {% include "components/activity_timeline.html" with events=activity %}
+`events` is an apps.audit.services.get_activity_for(...) queryset (or
+any AuditLog queryset) -- real recorded events only, nothing
+synthesized for display. See docs/DESIGN_SYSTEM.md's "Activity
+timelines" section.
+{% endcomment %}
+{% if events %}
+<ul class="kz-timeline">
+    {% for event in events %}
+    <li class="kz-timeline-item">
+        <div class="kz-timeline-marker"></div>
+        <div class="kz-timeline-content">
+            <div class="d-flex justify-content-between align-items-start gap-2">
+                <span class="fw-semibold">{{ event.action }}</span>
+                <span class="text-body-secondary small text-nowrap">{{ event.created_at|date:"d M Y, H:i" }}</span>
+            </div>
+            <div class="text-body-secondary small">{{ event.actor_label|default:"System" }}</div>
+            {% if event.before or event.after %}
+            <details class="mt-1">
+                <summary class="small text-primary kz-timeline-summary">What changed</summary>
+                <div class="row g-2 mt-1 small">
+                    {% if event.before %}
+                    <div class="col-6">
+                        <div class="text-body-secondary text-uppercase kz-timeline-diff-label">Before</div>
+                        <pre class="kz-timeline-diff mb-0">{{ event.before|pprint }}</pre>
+                    </div>
+                    {% endif %}
+                    {% if event.after %}
+                    <div class="col-6">
+                        <div class="text-body-secondary text-uppercase kz-timeline-diff-label">After</div>
+                        <pre class="kz-timeline-diff mb-0">{{ event.after|pprint }}</pre>
+                    </div>
+                    {% endif %}
+                </div>
+            </details>
+            {% endif %}
+        </div>
+    </li>
+    {% endfor %}
+</ul>
+{% else %}
+{% include "components/empty_state.html" with icon="bi-clock-history" title="No activity yet" body="Actions taken on this record will appear here." %}
+{% endif %}

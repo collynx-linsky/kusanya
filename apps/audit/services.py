@@ -41,3 +41,15 @@ def _content_type_for(target):
     from django.contrib.contenttypes.models import ContentType
 
     return ContentType.objects.get_for_model(target)
+
+
+def get_activity_for(target, *, limit: int = 20):
+    """Every AuditLog event recorded against a specific object, newest
+    first — backs the design system's activity-timeline component
+    (docs/DESIGN_SYSTEM.md). Real data only: this reads exactly what
+    record_audit_event already wrote, nothing synthesized for display."""
+    return (
+        AuditLog.objects.filter(content_type=_content_type_for(target), object_id=str(target.pk))
+        .select_related("actor")
+        .order_by("-created_at")[:limit]
+    )

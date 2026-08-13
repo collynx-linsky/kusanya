@@ -96,9 +96,24 @@ class AuditLog(models.Model):
         return f"[{self.created_at:%Y-%m-%d %H:%M:%S}] {self.action} by {self.actor_label or 'system'}"
 
     def _canonical_payload(self) -> str:
+        # `actor_label`, not `actor_id` -- ADR-035. `actor` is
+        # on_delete=SET_NULL: deleting a user who ever performed an
+        # audited action silently nulls `actor_id` on every one of
+        # their historical records. Hashing that live, mutable FK value
+        # meant an ordinary user deletion permanently broke chain
+        # verification for records that were never actually tampered
+        # with -- a real false positive, found live (ADR-035 has the
+        # full story). `actor_label` is the field this model already
+        # snapshots specifically to survive actor deletion (see its own
+        # help_text) and, unlike `actor_id`, never changes after
+        # creation -- the correct value to hash. `tenant_id` has the
+        # same SET_NULL shape and isn't fixed here; tenants are never
+        # hard-deleted by any code path in this system (suspended, not
+        # removed), so it's a real but effectively unreachable risk,
+        # not a demonstrated one -- see ADR-035.
         payload = {
             "action": self.action,
-            "actor_id": str(self.actor_id) if self.actor_id else None,
+            "actor_label": self.actor_label or None,
             "tenant_id": str(self.tenant_id) if self.tenant_id else None,
             "content_type_id": self.content_type_id,
             "object_id": self.object_id,

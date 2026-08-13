@@ -15,11 +15,62 @@
     <div class="kz-progress-bar" id="kzProgressBar"></div>
     <div class="kz-toast-region" id="kz-toasts"></div>
 
-    {# Shared HTMX-loaded modal shell -- a trigger sets hx-get/hx-target="#kzModalBody"
-       alongside data-bs-toggle="modal" data-bs-target="#kzModal". See
-       docs/DESIGN_SYSTEM.md's "Modals" section and
-       apps.customers.views.account_create for the reference
-       implementation (customer detail page's "New account" button). #}
+    {% comment %}
+    Command palette (Ctrl/Cmd+K) -- see docs/DESIGN_SYSTEM.md's
+    "Command palette" section and static/js/kusanya.js for the
+    keyboard wiring. Real navigation shortcuts + real entity search
+    (apps.core.views.command_palette_search), never fabricated results.
+    {% endcomment %}
+    {% if user.is_authenticated %}
+    <div class="modal fade" id="kzPaletteModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="p-2 border-bottom">
+                    <input type="search" id="kzPaletteInput" class="form-control form-control-lg border-0"
+                           placeholder="Search pages, customers, bills…" autocomplete="off"
+                           hx-get="{% url 'core:command-palette-search' %}"
+                           hx-target="#kzPaletteResults"
+                           hx-trigger="keyup changed delay:150ms, load"
+                           hx-indicator="#kzPaletteIndicator">
+                    <span class="htmx-indicator" id="kzPaletteIndicator"></span>
+                </div>
+                <div class="kz-palette-results" id="kzPaletteResults">
+                    <div class="px-3 py-4 text-body-secondary small text-center">Type to search pages, customers, or bills…</div>
+                </div>
+                <div class="modal-footer justify-content-start py-2 kz-palette-footer">
+                    <span><kbd>↑</kbd><kbd>↓</kbd> navigate</span>
+                    <span><kbd>Enter</kbd> select</span>
+                    <span><kbd>Esc</kbd> close</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="kzShortcutsModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 class="modal-title h5">Keyboard shortcuts</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="d-flex justify-content-between py-1"><span>Open command palette</span><span><kbd>Ctrl</kbd>/<kbd>⌘</kbd> <kbd>K</kbd></span></div>
+                    <div class="d-flex justify-content-between py-1"><span>Focus the search/filter box on this page</span><span><kbd>/</kbd></span></div>
+                    <div class="d-flex justify-content-between py-1"><span>Show this help</span><span><kbd>?</kbd></span></div>
+                    <div class="d-flex justify-content-between py-1"><span>Close a dialog</span><span><kbd>Esc</kbd></span></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {% comment %}
+    Shared HTMX-loaded modal shell -- a trigger sets
+    hx-get/hx-target="#kzModalBody" alongside data-bs-toggle="modal"
+    data-bs-target="#kzModal". See docs/DESIGN_SYSTEM.md's "Modals"
+    section and apps.customers.views.account_create for the reference
+    implementation (customer detail page's "New account" button).
+    {% endcomment %}
     <div class="modal fade" id="kzModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">

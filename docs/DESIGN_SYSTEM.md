@@ -1,9 +1,10 @@
 # Design System
 
-P0 (Foundation) and P1 (Enterprise UX) of the enterprise-UX rework —
-see ARCHITECTURE_DECISIONS ADR-033 (P0) and ADR-034 (P1) for why this
-stayed Django Templates + Bootstrap 5 + HTMX rather than a SPA
-framework, and what tradeoff that constraint implies.
+P0 (Foundation), P1 (Enterprise UX), and P2 (Advanced Features) of the
+enterprise-UX rework — see ARCHITECTURE_DECISIONS ADR-033 (P0), ADR-034
+(P1), and ADR-036 (P2, plus ADR-035 for a real integrity bug P2's work
+surfaced) for why this stayed Django Templates + Bootstrap 5 + HTMX
+rather than a SPA framework, and what tradeoff that constraint implies.
 
 This document is both a reference for the pieces already built and an
 honest map of what's migrated to the new patterns versus what still
@@ -73,17 +74,26 @@ here means one of two things:
   small number of parameters: `components/stat_card.html`,
   `components/empty_state.html`, `components/pagination.html`.
 
-  **Gotcha that cost real debugging time:** a partial's "usage example"
-  documented in a template comment must use `{% comment %}...{% endcomment %}`,
-  never `{# ... #}`, if the example text itself contains `{% %}` syntax.
-  A single-line `{# #}` comment does not reliably suppress a `{%
-  include "self" %}`-shaped example written inside it — it was
-  literally executed, and since the example was the component including
-  *itself*, it recursed until `RecursionError`. Confirmed directly
-  against `django.template.Template` before fixing: an `{% include %}`
-  tag inside a `{# #}` block raised `TemplateDoesNotExist` instead of
-  being ignored. `{% comment %}` blocks were verified safe with the
-  same test and are what every component doc-comment uses now.
+  **Gotcha that cost real debugging time (twice — see the correction
+  below):** Django's `{# ... #}` comment tag **cannot span multiple
+  lines, at all, regardless of content** — this is documented Django
+  behavior, not a bug in this codebase, but easy to miss. A `{# #}`
+  comment written across several lines simply fails to be recognized as
+  a comment: the raw text, `{#`/`#}` markers included, renders as
+  literal output. First discovered when a component's multi-line usage
+  example (`{% include "components/empty_state.html" with ... %}`,
+  written as a "comment" describing the component's own usage) turned
+  out to still be *executed* — since the example was the component
+  including itself, it recursed until `RecursionError`. That was
+  initially (and incompletely) diagnosed as "only breaks if the comment
+  contains `{% %}` syntax," which was wrong — P2 found three more
+  multi-line `{# #}` comments with no embedded tags at all, silently
+  leaking their literal text into rendered pages. Confirmed both the bug
+  and the fix directly against `django.template.Template` before
+  trusting it. The rule: **any comment spanning more than one line must
+  use `{% comment %}...{% endcomment %}`**, which does support
+  multi-line — never `{# #}`, even for a "safe-looking" multi-line note
+  with no tag syntax in it.
 
 Status badges use a template filter, not a partial:
 `{{ payment.status|status_badge_class }}` (`apps.core.templatetags.kusanya_ui`)
@@ -304,6 +314,113 @@ remove one from active use, from the portal at all) to full CRUD:
   even though it isn't itself a financial-event model. Both actions are
   confirmed via a modal (see "Modals" above) before anything happens.
 
+## Command palette
+
+Ctrl/Cmd+K (or clicking the "Search…" button in the top bar) opens a
+modal with a single search input, hitting `apps.core.views.command_palette_search`
+on every keystroke (150ms debounce) via HTMX. Results are two kinds,
+both real:
+
+- **Navigation shortcuts** — a static list mirroring the sidebar's real
+  links (`apps.core.views._NAV_SHORTCUTS`), filtered by substring match
+  on the label. Not a separate source of truth from the sidebar; if a
+  sidebar link changes, update the same list.
+- **Entity search** — `apps.core.search.search_customers`/`search_bills`,
+  reusing the exact-match-on-encrypted-fields constraint already
+  established (ADR-032) rather than inventing a separate, laxer search
+  behavior just for the palette.
+
+Empty query shows a prompt, not an empty list; no matches shows a real
+"no matches" message. Arrow keys move a `.active` class between result
+rows (`static/js/kusanya.js`), Enter activates the highlighted (or
+first) result, Esc closes (native `<dialog>`/Bootstrap modal
+behavior).
+
+## Keyboard shortcuts
+
+- **Ctrl/Cmd+K** — opens the command palette, from anywhere, including
+  while focus is inside a text input (this one intentionally overrides
+  "don't act on shortcuts while typing").
+- **/** — focuses the current page's search/filter input, if it has one
+  (`input[type="search"]`) — skipped while already typing in a field.
+- **?** — opens a real shortcuts-help dialog (`#kzShortcutsModal` in
+  `base.html`) listing exactly these shortcuts, not a placeholder.
+- **Esc** — closes whatever Bootstrap modal is open (native Bootstrap
+  behavior, no custom code needed).
+
+`isTypingInField()` in `kusanya.js` is the guard that stops `/` and `?`
+from firing while a user is typing a real `/` or `?` character into a
+form field — only Ctrl/Cmd+K is exempt, since a global "quick open"
+shortcut is expected to work anywhere.
+
+## Bulk operations
+
+Checkbox-select on the Customers list (`kz-bulk-checkbox` per row,
+`kz-bulk-select-all` in the header) shows a bulk-actions bar
+(`apps.customers.views.customer_bulk_deactivate`) once at least one row
+is selected. Deliberately a real `<form>` POST — every selected
+customer is individually validated (tenant-scoped, so another tenant's
+ID slipped into the request is silently ignored, not acted on) and
+individually audited (`metadata={"bulk": True}` distinguishes a bulk
+action from a one-at-a-time deactivate in the activity timeline, but
+both produce the same real `customer.deactivated` event). The
+confirmation is a native `confirm()`, not another Bootstrap modal —
+deliberately, since the confirmation text depends on a dynamically
+changing selection count and a native dialog is genuinely simpler for
+that specific shape than wiring a modal's body to update on every
+checkbox change.
+
+## Background jobs
+
+`apps.core.views.background_jobs` aggregates real state from tables
+this system already writes to as a side effect of normal operation —
+not a generic Celery task browser (that's a real, separate
+infrastructure decision, needing something like Flower or
+django-celery-results, for later): `WebhookDelivery` and `Notification`
+status counts (tenant-scoped), plus — platform-staff only —
+`django_celery_beat.PeriodicTask.last_run_at`/`total_run_count` for
+scheduled tasks like the health monitor (ADR-031). If a count reads
+zero, it's because nothing has happened yet, not because the query is
+broken — confirmed by checking the real counts against real webhook/
+notification fixtures in tests, not just that the page returns 200.
+
+## Activity timelines
+
+`apps.audit.services.get_activity_for(target)` returns every `AuditLog`
+event recorded against a specific object (via its existing
+`GenericForeignKey`), newest first — `components/activity_timeline.html`
+renders that queryset as a vertical timeline with an expandable
+before/after diff per entry. Applied to the Customer detail page as the
+reference (real events: `customer.created`, `customer.updated` — added
+in P2 specifically so the timeline wouldn't be dishonestly incomplete
+for edits made through the new CRUD UI — `customer.deactivated`,
+`customer.reactivated`). Nothing here is synthesized for display; an
+empty timeline shows a real empty state, not placeholder rows.
+
+## Audit visualization
+
+The audit report (`apps.reports.views.audit_report`, rendering
+`reports/audit.html` and `reports/_audit_table.html`) gained pagination
+(50/page — it was silently capped at `[:500]` with no way to see
+further back), CSV
+export (`?format=csv`, using the pre-existing `apps.reports.csv_export.render_csv`
+helper already used by every other report), and HTMX partial-swap
+search/filter on top of the date-range filters that already existed.
+
+Separately, a real **"Verify audit chain integrity"** action was added
+to the platform dashboard (`apps.audit.views.verify_chain`, POST-only,
+platform-staff-gated) that calls the pre-existing
+`AuditLog.verify_chain()` classmethod and reports the real result. This
+is deliberately platform-staff-only rather than exposed on the
+per-tenant audit report — the hash chain is one global sequence across
+every tenant, not one chain per tenant, so verifying a tenant-filtered
+subset would misinterpret "this tenant's first record isn't preceded by
+GENESIS_HASH" as tampering. Building this genuinely useful feature is
+also what surfaced a real bug in the hash chain itself — see
+ARCHITECTURE_DECISIONS ADR-035 for the full story (a false-positive
+"tampering" report caused by deleting a user after they performed an
+audited action, and the fix).
+
 ## Migration status
 
 **Fully migrated to every P0+P1 pattern** (shell, search, filtering,
@@ -319,16 +436,33 @@ design-system card/table styling, `status_badge_class`). Bills has no
 Update/Delete UI yet (bills are largely immutable once issued by
 design — cancel is the closest analog and already exists).
 
-**Gets the new shell/tokens/notification-bell automatically, not yet
-migrated to the newer table/search/form/CRUD patterns**: payments,
-control numbers, ledger, revenue, reconciliation, settlement, webhooks,
-notifications, receipts, reports, API credentials, and platform-admin
+**Migrated in P2**: the audit report (`reports/audit.html` — search,
+pagination, CSV export) and the receipts list (reframed as "Documents,"
+see "Command palette"/"Document management" reasoning in ADR-036).
+Customer detail additionally gained a real activity timeline.
+
+**Global/cross-cutting, so every page already has these regardless of
+migration status**: the command palette (Ctrl/Cmd+K), keyboard
+shortcuts, the topbar notification bell (P1), and the background-jobs
+page (linked from the sidebar) — none of these depend on a page having
+been individually migrated, since they live in `base.html`/the shell or
+are their own new page.
+
+**Gets the new shell/tokens/notification-bell/command-palette
+automatically, not yet migrated to the newer table/search/form/CRUD
+patterns**: payments, control numbers, ledger, revenue, reconciliation,
+settlement, webhooks, notifications, reports (bills/payments/collections/
+outstanding-balances specifically — these already had real
+filtering *and* CSV export before P0 even started, see
+`apps/reports/csv_export.py`; what they're missing is visual migration
+and pagination, not functionality), API credentials, and platform-admin
 views. These inherit the sidebar, top bar, design tokens, and the real
 topbar-alerts bell simply by extending `base.html` (which every page
 already did) — but their tables have no search/sort/pagination yet, and
 their forms use hand-written markup instead of crispy-forms. Extending
 the pattern to each of these is real, bounded, mechanical work (Bills
-is now a *second* worked example alongside Customers, covering the
-"search + filter, no CRUD" shape many of these will need), not a design
-question — a natural next increment, not attempted here to avoid
-rushing ~14 remaining templates without individual live verification.
+and the audit report are now worked examples alongside Customers,
+covering the "search + filter, no CRUD" shape most of these will need),
+not a design question — a natural next increment, not attempted here to
+avoid rushing the remaining templates without individual live
+verification.

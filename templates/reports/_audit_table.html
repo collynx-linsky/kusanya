@@ -1,0 +1,52 @@
+{% load kusanya_ui %}
+<div class="kz-table-wrap" id="kz-audit-table">
+    <div class="kz-table-toolbar">
+        <form class="d-flex gap-2" role="search"
+              hx-get="{% url 'reports:audit' %}"
+              hx-target="#kz-audit-table"
+              hx-select="#kz-audit-table"
+              hx-swap="outerHTML"
+              hx-trigger="keyup changed delay:400ms from:#kz-audit-action, change from:#kz-audit-date-from, change from:#kz-audit-date-to"
+              hx-push-url="true"
+              hx-indicator="#kz-audit-search-indicator">
+            <div class="input-group input-group-sm kz-search-input">
+                <span class="input-group-text bg-transparent border-end-0"><i class="bi bi-search"></i></span>
+                <input type="search" id="kz-audit-action" name="action" value="{{ action }}"
+                       class="form-control border-start-0" placeholder="Action contains…"
+                       aria-label="Filter by action">
+                <span class="input-group-text bg-transparent border-start-0 htmx-indicator" id="kz-audit-search-indicator">
+                    <span class="spinner-border spinner-border-sm text-secondary" role="status"></span>
+                </span>
+            </div>
+            <input type="date" id="kz-audit-date-from" name="date_from" value="{{ request.GET.date_from }}" class="form-control form-control-sm" aria-label="From date">
+            <input type="date" id="kz-audit-date-to" name="date_to" value="{{ request.GET.date_to }}" class="form-control form-control-sm" aria-label="To date">
+        </form>
+        <div class="kz-table-toolbar-filters">
+            <span class="badge text-bg-light border">{{ page_obj.paginator.count }} event{{ page_obj.paginator.count|pluralize }}</span>
+            <a href="{% querystring_with format='csv' %}" class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-download"></i> Export CSV
+            </a>
+        </div>
+    </div>
+
+    {% if page_obj.object_list %}
+    <div class="table-responsive">
+        <table class="table kz-table mb-0">
+            <thead><tr><th>Date</th><th>Action</th><th>Actor</th><th>Correlation ID</th></tr></thead>
+            <tbody>
+                {% for event in page_obj.object_list %}
+                <tr>
+                    <td class="text-nowrap">{{ event.created_at|date:"Y-m-d H:i:s" }}</td>
+                    <td><span class="badge {{ event.action|status_badge_class }}">{{ event.action }}</span></td>
+                    <td>{{ event.actor_label|default:"System" }}</td>
+                    <td class="font-monospace small text-body-secondary">{{ event.correlation_id|default:"—" }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% include "components/pagination.html" with page_obj=page_obj %}
+    {% else %}
+    {% include "components/empty_state.html" with icon="bi-clock-history" title="No audit events match these filters" body="Try a different action filter." %}
+    {% endif %}
+</div>

@@ -94,6 +94,8 @@
     </div>
 </div>
 
+<div class="row g-3">
+<div class="col-md-8">
 <div class="kz-table-wrap">
     <div class="kz-table-toolbar">
         <h2 class="h6 mb-0">Accounts</h2>
@@ -117,5 +119,16 @@
     {% url 'customers:account-create' customer.pk as account_create_url %}
     {% include "components/empty_state.html" with icon="bi-wallet2" title="No accounts yet" body="Create a billing relationship for this customer to start issuing bills." action_url=account_create_url action_label="New account" %}
     {% endif %}
+</div>
+</div>
+
+<div class="col-md-4">
+<div class="kz-card">
+    <div class="kz-card-header"><h2>Activity</h2></div>
+    <div class="kz-card-body">
+        {% include "components/activity_timeline.html" with events=activity %}
+    </div>
+</div>
+</div>
 </div>
 {% endblock %}

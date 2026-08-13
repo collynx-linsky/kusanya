@@ -1,32 +1,17 @@
 {% extends "base.html" %}
-{% block title %}Audit report{% endblock %}
+{% block title %}Audit events{% endblock %}
+{% block breadcrumb %}
+<a href="{% url 'reports:index' %}">Reports</a>
+<i class="bi bi-chevron-right small"></i>
+<span class="text-body">Audit events</span>
+{% endblock %}
 {% block content %}
-<h1 class="h3 mb-4">Audit events</h1>
-
-<form method="get" class="row g-2 mb-3">
-    <div class="col-auto"><input type="text" name="action" class="form-control" value="{{ request.GET.action }}" placeholder="Action contains…"></div>
-    <div class="col-auto"><input type="date" name="date_from" class="form-control" value="{{ request.GET.date_from }}" placeholder="From"></div>
-    <div class="col-auto"><input type="date" name="date_to" class="form-control" value="{{ request.GET.date_to }}" placeholder="To"></div>
-    <div class="col-auto"><button type="submit" class="btn btn-primary">Filter</button></div>
-</form>
-
-{% if events %}
-<div class="table-responsive">
-    <table class="table table-striped align-middle">
-        <thead><tr><th>Date</th><th>Action</th><th>Actor</th><th>Correlation ID</th></tr></thead>
-        <tbody>
-            {% for event in events %}
-            <tr>
-                <td>{{ event.created_at|date:"Y-m-d H:i:s" }}</td>
-                <td>{{ event.action }}</td>
-                <td>{{ event.actor_label|default:"system" }}</td>
-                <td class="font-monospace small">{{ event.correlation_id }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+<div class="kz-page-header">
+    <div>
+        <h1 class="kz-page-title">Audit events</h1>
+        <p class="kz-page-subtitle">Every recorded action for your institution, newest first.</p>
+    </div>
 </div>
-{% else %}
-<p class="text-body-secondary">No audit events match these filters.</p>
-{% endif %}
+
+{% include "reports/_audit_table.html" %}
 {% endblock %}

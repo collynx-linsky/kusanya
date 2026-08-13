@@ -371,3 +371,122 @@ class TestTopbarAlertsContextProcessor:
         response = client.get("/accounts/login/")
         # context processor returns {} for anonymous -- no KeyError, no crash
         assert response.status_code == 200
+
+
+@pytest.mark.django_db
+class TestCommandPaletteSearch:
+    """apps.core.views.command_palette_search -- real navigation
+    shortcuts + real entity search, never fabricated results. See
+    docs/DESIGN_SYSTEM.md's "Command palette" section."""
+
+    def _login(self, client, make_user, make_tenant, make_membership):
+        tenant = make_tenant()
+        user = make_user(email="palette@example.com")
+        make_membership(user, tenant)
+        client.force_login(user)
+        session = client.session
+        session["active_tenant_id"] = str(tenant.id)
+        session.save()
+        return tenant
+
+    def test_empty_query_returns_the_prompt_not_an_error(self, client, make_user, make_tenant, make_membership):
+        self._login(client, make_user, make_tenant, make_membership)
+        response = client.get("/command-palette/search/")
+        assert response.status_code == 200
+        assert b"Type to search" in response.content
+
+    def test_nav_shortcut_matches_by_label(self, client, make_user, make_tenant, make_membership):
+        self._login(client, make_user, make_tenant, make_membership)
+        response = client.get("/command-palette/search/", {"q": "Customers"})
+        assert response.status_code == 200
+        assert b"Customers" in response.content
+
+    def test_exact_customer_name_match_is_found(self, client, make_user, make_tenant, make_membership):
+        from apps.customers.models import Customer
+
+        tenant = self._login(client, make_user, make_tenant, make_membership)
+        Customer.objects.create(tenant=tenant, full_name="Amina Juma")
+
+        response = client.get("/command-palette/search/", {"q": "Amina Juma"})
+
+        assert b"Amina Juma" in response.content
+
+    def test_bill_number_substring_match_is_found(
+        self, client, make_user, make_tenant, make_membership, make_customer, make_customer_account
+    ):
+        from decimal import Decimal
+
+        from apps.billing.services import get_or_create_bill
+
+        tenant = self._login(client, make_user, make_tenant, make_membership)
+        account = make_customer_account(tenant, make_customer(tenant))
+        bill, _ = get_or_create_bill(
+            tenant=tenant, customer_account=account,
+            items=[{"description": "Fee", "unit_amount": Decimal("100")}],
+        )
+
+        response = client.get("/command-palette/search/", {"q": bill.bill_number[:6]})
+
+        assert bill.bill_number.encode() in response.content
+
+    def test_no_match_shows_a_real_no_results_message(self, client, make_user, make_tenant, make_membership):
+        self._login(client, make_user, make_tenant, make_membership)
+        response = client.get("/command-palette/search/", {"q": "zzz-nonexistent-zzz"})
+        assert b"No matches" in response.content
+
+
+@pytest.mark.django_db
+class TestBackgroundJobsPage:
+    """apps.core.views.background_jobs -- real aggregated state from
+    WebhookDelivery/Notification, never fabricated counts."""
+
+    def test_renders_with_zero_counts_when_nothing_has_happened(
+        self, client, make_user, make_tenant, make_membership
+    ):
+        tenant = make_tenant()
+        user = make_user(email="ops-jobs@example.com")
+        make_membership(user, tenant)
+        client.force_login(user)
+        session = client.session
+        session["active_tenant_id"] = str(tenant.id)
+        session.save()
+
+        response = client.get("/background-jobs/")
+
+        assert response.status_code == 200
+        assert response.context["webhook_pending"] == 0
+        assert response.context["notification_sent"] == 0
+
+    def test_staff_user_also_sees_scheduled_tasks(self, client, make_user, make_tenant, make_membership):
+        tenant = make_tenant()
+        user = make_user(email="staffops@example.com")
+        user.is_staff = True
+        user.save()
+        make_membership(user, tenant)
+        client.force_login(user)
+        session = client.session
+        session["active_tenant_id"] = str(tenant.id)
+        session.save()
+
+        response = client.get("/background-jobs/")
+
+        assert response.status_code == 200
+        assert "scheduled_tasks" in response.context
+        # Seeded by apps/core/migrations/0002_seed_health_monitor_schedule.py
+        names = [t.name for t in response.context["scheduled_tasks"]]
+        assert "Monitor system health" in names
+
+    def test_non_staff_user_does_not_see_scheduled_tasks(
+        self, client, make_user, make_tenant, make_membership
+    ):
+        tenant = make_tenant()
+        user = make_user(email="regular@example.com")
+        make_membership(user, tenant)
+        client.force_login(user)
+        session = client.session
+        session["active_tenant_id"] = str(tenant.id)
+        session.save()
+
+        response = client.get("/background-jobs/")
+
+        assert "scheduled_tasks" not in response.context

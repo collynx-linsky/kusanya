@@ -55,11 +55,13 @@
             <i class="bi bi-x-circle"></i> Cancel bill
         </button>
 
-        {# Static Bootstrap modal -- no HTMX needed here, the confirmation
-           text doesn't depend on fresh server data. See
-           docs/DESIGN_SYSTEM.md's "Modals" section for when to use this
-           versus an HTMX-loaded modal (customers:account-create-modal
-           is the HTMX-loaded reference example). #}
+        {% comment %}
+        Static Bootstrap modal -- no HTMX needed here, the confirmation
+        text doesn't depend on fresh server data. See
+        docs/DESIGN_SYSTEM.md's "Modals" section for when to use this
+        versus an HTMX-loaded modal (apps.customers.views.account_create
+        is the HTMX-loaded reference example).
+        {% endcomment %}
         <div class="modal fade" id="kzCancelBillModal" tabindex="-1" aria-labelledby="kzCancelBillModalLabel" aria-hidden="true">
             <div class="modal-dialog">
                 <div class="modal-content">

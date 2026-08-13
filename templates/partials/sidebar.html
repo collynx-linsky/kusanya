@@ -59,6 +59,10 @@
 
             <div class="kz-nav-section">
                 <div class="kz-nav-section-label">Operations</div>
+                <a class="kz-nav-link {% is_active_view 'core:background-jobs' %}" href="{% url 'core:background-jobs' %}">
+                    <span class="kz-nav-icon"><i class="bi bi-hdd-stack"></i></span>
+                    Background jobs
+                </a>
                 <a class="kz-nav-link {% is_active_ns 'webhooks' %}" href="{% url 'webhooks:list' %}">
                     <span class="kz-nav-icon"><i class="bi bi-broadcast"></i></span>
                     Webhooks

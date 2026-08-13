@@ -1,0 +1,26 @@
+{% if not query %}
+<div class="px-3 py-4 text-body-secondary small text-center">Type to search pages, customers, or bills…</div>
+{% elif not nav_matches and not customer_matches and not bill_matches %}
+<div class="px-3 py-4 text-body-secondary small text-center">No matches for "{{ query }}".</div>
+{% else %}
+{% if nav_matches %}
+<div class="kz-palette-group-label">Go to</div>
+{% for item in nav_matches %}
+<a class="kz-palette-item" href="{% url item.url_name %}"><i class="bi {{ item.icon }}"></i> {{ item.label }}</a>
+{% endfor %}
+{% endif %}
+
+{% if customer_matches %}
+<div class="kz-palette-group-label">Customers</div>
+{% for customer in customer_matches %}
+<a class="kz-palette-item" href="{% url 'customers:detail' customer.pk %}"><i class="bi bi-person"></i> {{ customer.full_name }}</a>
+{% endfor %}
+{% endif %}
+
+{% if bill_matches %}
+<div class="kz-palette-group-label">Bills</div>
+{% for bill in bill_matches %}
+<a class="kz-palette-item" href="{% url 'billing:detail' bill.pk %}"><i class="bi bi-receipt"></i> {{ bill.bill_number }} — {{ bill.customer_account }}</a>
+{% endfor %}
+{% endif %}
+{% endif %}

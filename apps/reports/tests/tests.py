@@ -104,3 +104,65 @@ class TestCollectionsReport:
         response = client.get("/reports/collections/")
         assert response.status_code == 200
         assert b"1000" in response.content
+
+
+@pytest.mark.django_db
+class TestAuditReport:
+    """apps.reports.views.audit_report -- P2 polish: pagination, CSV
+    export, and HTMX partial-swap on top of the pre-existing
+    action/date filters (docs/DESIGN_SYSTEM.md's "Audit visualization"
+    section)."""
+
+    def _login(self, client, make_user, make_tenant, make_membership):
+        tenant = make_tenant()
+        user = make_user(email="auditreport@example.com")
+        make_membership(user, tenant, role=TenantRole.FINANCE_MANAGER)
+        client.force_login(user)
+        session = client.session
+        session["active_tenant_id"] = str(tenant.id)
+        session.save()
+        return tenant
+
+    def test_pagination_splits_results_across_pages(self, client, make_user, make_tenant, make_membership):
+        from apps.audit.services import record_audit_event
+
+        tenant = self._login(client, make_user, make_tenant, make_membership)
+        for i in range(60):
+            record_audit_event(action=f"test.event.{i}", tenant=tenant)
+
+        response = client.get("/reports/audit/")
+
+        assert response.status_code == 200
+        assert response.context["page_obj"].paginator.count == 60
+        assert response.context["page_obj"].paginator.num_pages == 2
+
+    def test_csv_export_returns_a_real_csv_response(self, client, make_user, make_tenant, make_membership):
+        from apps.audit.services import record_audit_event
+
+        tenant = self._login(client, make_user, make_tenant, make_membership)
+        record_audit_event(action="test.exportable", tenant=tenant)
+
+        response = client.get("/reports/audit/", {"format": "csv"})
+
+        assert response.status_code == 200
+        assert response["Content-Type"] == "text/csv"
+        assert b"test.exportable" in response.content
+
+    def test_htmx_request_returns_only_the_table_partial(self, client, make_user, make_tenant, make_membership):
+        tenant = self._login(client, make_user, make_tenant, make_membership)
+
+        response = client.get("/reports/audit/", HTTP_HX_REQUEST="true", HTTP_HX_TARGET="kz-audit-table")
+
+        assert response.status_code == 200
+        assert b"kz-sidebar" not in response.content
+
+    def test_only_shows_events_for_the_logged_in_tenant(self, client, make_user, make_tenant, make_membership):
+        from apps.audit.services import record_audit_event
+
+        tenant_a = make_tenant(name="Tenant A")
+        record_audit_event(action="tenant_a.secret_event", tenant=tenant_a)
+        self._login(client, make_user, make_tenant, make_membership)
+
+        response = client.get("/reports/audit/")
+
+        assert b"tenant_a.secret_event" not in response.content

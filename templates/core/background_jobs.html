@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% load kusanya_ui %}
+{% block title %}Background jobs{% endblock %}
+{% block breadcrumb %}<span class="text-body">Background jobs</span>{% endblock %}
+{% block content %}
+<div class="kz-page-header">
+    <div>
+        <h1 class="kz-page-title">Background jobs</h1>
+        <p class="kz-page-subtitle">Async delivery work — webhooks, notifications, and scheduled checks.</p>
+    </div>
+</div>
+
+<h2 class="kz-nav-section-label px-0">Webhook deliveries</h2>
+<div class="row g-3">
+    <div class="col-6 col-lg-3">
+        {% include "components/stat_card.html" with label="Pending / retrying" value=webhook_pending %}
+    </div>
+    <div class="col-6 col-lg-3">
+        {% include "components/stat_card.html" with label="Delivered" value=webhook_delivered %}
+    </div>
+    <div class="col-6 col-lg-3">
+        {% url 'webhooks:list' as webhooks_url %}
+        {% include "components/stat_card.html" with label="Dead letter" value=webhook_dead_letter href=webhooks_url %}
+    </div>
+</div>
+
+<div class="kz-table-wrap mt-3">
+    {% if recent_webhook_deliveries %}
+    <div class="table-responsive">
+        <table class="table kz-table mb-0">
+            <thead><tr><th>Endpoint</th><th>Event</th><th>Status</th><th>Attempts</th><th>Last attempted</th></tr></thead>
+            <tbody>
+                {% for delivery in recent_webhook_deliveries %}
+                <tr>
+                    <td>{{ delivery.endpoint.url|truncatechars:40 }}</td>
+                    <td>{{ delivery.event_type }}</td>
+                    <td><span class="badge {{ delivery.status|status_badge_class }}">{{ delivery.get_status_display }}</span></td>
+                    <td>{{ delivery.attempt_count }} / {{ delivery.max_attempts }}</td>
+                    <td class="text-body-secondary">{{ delivery.last_attempted_at|date:"d M Y, H:i"|default:"—" }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    {% include "components/empty_state.html" with icon="bi-broadcast" title="No webhook deliveries yet" body="Deliveries appear here once an endpoint is configured and an event fires." %}
+    {% endif %}
+</div>
+
+<h2 class="kz-nav-section-label px-0 mt-4">Notification delivery</h2>
+<div class="row g-3">
+    <div class="col-6 col-lg-3">
+        {% include "components/stat_card.html" with label="Pending" value=notification_pending %}
+    </div>
+    <div class="col-6 col-lg-3">
+        {% include "components/stat_card.html" with label="Sent" value=notification_sent %}
+    </div>
+    <div class="col-6 col-lg-3">
+        {% url 'notifications:list' as notifications_url %}
+        {% include "components/stat_card.html" with label="Failed" value=notification_failed href=notifications_url %}
+    </div>
+</div>
+
+{% if scheduled_tasks is not None %}
+<h2 class="kz-nav-section-label px-0 mt-4">Scheduled tasks (platform)</h2>
+<div class="kz-table-wrap">
+    {% if scheduled_tasks %}
+    <div class="table-responsive">
+        <table class="table kz-table mb-0">
+            <thead><tr><th>Task</th><th>Schedule</th><th>Last run</th><th>Total runs</th></tr></thead>
+            <tbody>
+                {% for task in scheduled_tasks %}
+                <tr>
+                    <td>{{ task.name }}</td>
+                    <td>{{ task.interval|default:task.crontab|default:"—" }}</td>
+                    <td class="text-body-secondary">{{ task.last_run_at|date:"d M Y, H:i"|default:"Never run yet" }}</td>
+                    <td>{{ task.total_run_count }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    {% include "components/empty_state.html" with icon="bi-clock" title="No scheduled tasks enabled" %}
+    {% endif %}
+</div>
+{% endif %}
+{% endblock %}

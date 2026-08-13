@@ -327,3 +327,69 @@ class TestAccountCreateHtmxModal:
         assert response.status_code == 200
         assert b"kz-sidebar" not in response.content
         assert "HX-Redirect" not in response
+
+
+@pytest.mark.django_db
+class TestCustomerBulkDeactivate:
+    """apps.customers.views.customer_bulk_deactivate -- a real bulk
+    operation, individually audited per record (docs/DESIGN_SYSTEM.md's
+    "Bulk operations" section)."""
+
+    def _login_as_manager(self, client, make_user, make_tenant, make_membership):
+        from apps.tenants.models import TenantRole
+
+        tenant = make_tenant()
+        user = make_user(email="bulk-manager@example.com")
+        make_membership(user, tenant, role=TenantRole.ADMIN)
+        client.force_login(user)
+        session = client.session
+        session["active_tenant_id"] = str(tenant.id)
+        session.save()
+        return tenant
+
+    def test_deactivates_every_selected_customer(self, client, make_user, make_tenant, make_membership):
+        tenant = self._login_as_manager(client, make_user, make_tenant, make_membership)
+        c1 = Customer.objects.create(tenant=tenant, full_name="One")
+        c2 = Customer.objects.create(tenant=tenant, full_name="Two")
+        untouched = Customer.objects.create(tenant=tenant, full_name="Three")
+
+        client.post("/customers/bulk-deactivate/", {"customer_ids": [str(c1.pk), str(c2.pk)]})
+
+        c1.refresh_from_db()
+        c2.refresh_from_db()
+        untouched.refresh_from_db()
+        assert c1.is_active is False
+        assert c2.is_active is False
+        assert untouched.is_active is True
+
+    def test_records_an_individual_audit_event_per_customer(
+        self, client, make_user, make_tenant, make_membership
+    ):
+        from apps.audit.models import AuditLog
+
+        tenant = self._login_as_manager(client, make_user, make_tenant, make_membership)
+        c1 = Customer.objects.create(tenant=tenant, full_name="One")
+        c2 = Customer.objects.create(tenant=tenant, full_name="Two")
+
+        client.post("/customers/bulk-deactivate/", {"customer_ids": [str(c1.pk), str(c2.pk)]})
+
+        events = AuditLog.objects.filter(action="customer.deactivated", tenant=tenant)
+        assert events.count() == 2
+        assert all(e.metadata.get("bulk") is True for e in events)
+
+    def test_cannot_deactivate_another_tenants_customer_by_id(
+        self, client, make_user, make_tenant, make_membership
+    ):
+        tenant_a = make_tenant(name="Tenant A")
+        other_customer = Customer.objects.create(tenant=tenant_a, full_name="Not Yours")
+        self._login_as_manager(client, make_user, make_tenant, make_membership)
+
+        client.post("/customers/bulk-deactivate/", {"customer_ids": [str(other_customer.pk)]})
+
+        other_customer.refresh_from_db()
+        assert other_customer.is_active is True
+
+    def test_no_selection_does_not_error(self, client, make_user, make_tenant, make_membership):
+        self._login_as_manager(client, make_user, make_tenant, make_membership)
+        response = client.post("/customers/bulk-deactivate/", {"customer_ids": []})
+        assert response.status_code == 302

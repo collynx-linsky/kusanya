@@ -1167,3 +1167,130 @@ empty states), Bandit clean, and every new interactive path
 (deactivate/reactivate, the HTMX modal's full create→redirect cycle,
 bill search/filter) was exercised over real HTTP against the running
 dev server with real data, not just asserted in tests.
+
+## ADR-035: AuditLog's hash chain is computed over `actor_label`, not `actor_id` — a real integrity bug found by building the chain-verification UI
+
+**Decision:** `AuditLog._canonical_payload()` now hashes `actor_label`
+(the human-readable snapshot the model already maintains) instead of
+`actor_id` (the live foreign key). A one-time data migration
+(`apps/audit/migrations/0003_reset_chain_for_actor_label_hash_fix.py`)
+clears every pre-existing `AuditLog` row, since the hash chain is
+sequential — every record's hash depends on the previous record's hash
+— and `AuditLog` blocks `.save()` on existing rows by design (immutable
+records), so a hash computed under the old formula can never be
+corrected in place; the chain has to restart from `GENESIS_HASH` under
+the corrected formula.
+
+**Reason — this was found live, not designed defensively in
+advance:** P2's audit-visualization work (ADR-036) added a real
+"verify chain integrity" action
+(`apps.audit.views.verify_chain`, calling the pre-existing
+`AuditLog.verify_chain()`) to the platform dashboard. The first time it
+ran against genuine development data, it reported a real failure:
+`mfa.backup_code_used` — a record from earlier live MFA testing in this
+same build, whose actor (`perftest@example.com`, a throwaway test
+account) had since been deleted. `AuditLog.actor` is
+`on_delete=SET_NULL`, so deleting that user silently changed
+`actor_id` on their historical audit records to `NULL`. `verify_chain()`
+recomputes each hash from the record's *current* field values — so a
+value that mutated after the hash was sealed will never match again,
+regardless of whether anything was actually tampered with. This means
+the original design had a real false-positive: **deleting any user who
+ever performed an audited action would have permanently broken chain
+verification for their entire audit history**, indistinguishable from
+genuine tampering. Confirmed the mechanism directly — recomputing the
+canonical payload for the flagged record and diffing it against the
+stored hash showed exactly one field mismatched (`actor_id`), and
+reproducing the sequence (audit event → delete the actor → verify)
+reliably triggered the same false failure before the fix, and passed
+cleanly after it.
+
+`actor_label` was already the right field for this — its own
+`help_text` says "kept even if the user is later deleted," and `save()`
+already populates it before computing the hash (`if self.actor_id and
+not self.actor_label: self.actor_label = str(self.actor)`, followed
+immediately by the hash computation) — so it was available and stable
+at exactly the right moment; the bug was hashing the wrong one of two
+fields that were both sitting right there.
+
+**Consequences:** `tenant_id` has the identical shape
+(`on_delete=SET_NULL`, hashed by live FK value) and is *not* fixed
+here — deliberately. Every code path in this system suspends or
+deactivates a `Tenant`, never hard-deletes one (no delete view, no
+admin action, nothing in this codebase issues `Tenant.objects.filter(...).delete()`),
+so unlike user deletion this is a real but not a demonstrated risk. A
+`tenant_label` snapshot mirroring `actor_label` would be the same fix if
+tenant hard-deletion is ever actually introduced — noted here so it
+isn't rediscovered independently, not built speculatively now. Clearing
+the existing `AuditLog` table was the honest resolution *because this
+project has no production deployment yet* — every row that existed was
+development/smoke-test data generated during this build, not real audit
+history; the migration's own comment is explicit that this would not be
+the correct response to a real formula bug discovered against
+production audit data (that would need a documented, versioned break in
+the chain with the reason recorded alongside it, not a silent wipe).
+244/244 tests passing, including a regression test that performs the
+exact failing sequence (audit event → delete the actor → verify) and
+asserts the chain stays intact.
+
+## ADR-036: P2 (Advanced Features) — command palette, bulk operations, real background-job visibility, activity timelines, audit chain verification
+
+**Decision:** Command palette (Ctrl/Cmd+K) with real navigation
+shortcuts and real entity search (`apps.core.search`, reusing the
+exact-match-on-encrypted-fields constraint from ADR-032); keyboard
+shortcuts (`/` to focus the current page's search box, `?` for a real
+shortcuts-help dialog); bulk operations (checkbox-select + bulk
+deactivate on Customers, each selected record individually audited so
+the activity timeline stays complete regardless of which path —
+one-at-a-time or bulk — was used); a background-jobs overview page
+aggregating real `WebhookDelivery`/`Notification` status counts plus
+(platform-staff-only) `django_celery_beat.PeriodicTask` run history; an
+activity-timeline component (`apps.audit.services.get_activity_for`)
+applied to the Customer detail page; and the audit report gaining
+pagination, CSV export, HTMX partial-swap search, and the chain-
+verification action that led to ADR-035. Full breakdown in
+`docs/DESIGN_SYSTEM.md`.
+
+**Reason (document management, the one item without a clean 1:1
+feature to build):** KUSANYA has no file-upload/attachment
+infrastructure at all — building one (storage backend, a new model,
+upload views) is a substantial new feature area, and fabricating a
+"documents" UI with no real backing data would repeat the exact mistake
+the notification bell (ADR-034) deliberately avoided. What already
+exists and *is* genuinely a generated document is `Receipt` — so the
+existing receipts list was reframed as "Documents" (page title and
+subtitle only; the underlying URL, view, and model all remain
+`receipts`, and the sidebar link deliberately still says "Receipts" —
+precise and familiar beats a broader-sounding label the feature doesn't
+back up). True arbitrary file attachment/management is real,
+deferred, future work, not something this pass pretends to have built.
+
+**Reason (chain verification is platform-staff-only, not on the
+per-tenant audit report):** `AuditLog`'s hash chain is one single
+global sequence (`AuditLog.save()` chains from `AuditLog.objects.order_by("-created_at", "-id").first()`
+across *all* tenants, not per-tenant) — verifying a tenant-filtered
+subset of it would misinterpret "the first record in this tenant's
+filtered view isn't preceded by `GENESIS_HASH`" as tampering, a false
+positive baked into the query shape itself. `apps.audit.views.verify_chain`
+is deliberately platform-staff-only (`apps.audit.urls`, under
+`platform/`) and always verifies the full, unfiltered chain — the only
+scope in which the result means anything.
+
+**Consequences:** 244/244 tests passing (22 new across this item and
+ADR-035's regression test), Bandit clean, and every new interactive
+path — palette navigation and entity search, bulk deactivate (including
+that it correctly refuses another tenant's customer IDs), the
+background-jobs page, and chain verification's both outcomes (intact,
+and the real failure that led to ADR-035) — was exercised live against
+the running dev server, not just asserted in tests. One more real,
+non-fabricated bug was caught and fixed along the way (not counting
+ADR-035): a Django-documented but easy-to-miss limitation where `{# #}`
+comments cannot span multiple lines at all — content inside a multi-line
+`{# #}` block is not stripped, it renders as literal text (or, if it
+happens to contain `{% %}`-shaped text, gets executed). Four instances
+existed across P0–P2 templates using multi-line `{# #}`; all were
+converted to `{% comment %}...{% endcomment %}` (which does support
+multi-line) and `docs/DESIGN_SYSTEM.md`'s existing note on this — from
+when it first surfaced in P0 as a `RecursionError` — has been corrected
+to describe the actual, general rule rather than the narrower
+symptom-shaped one originally written down.

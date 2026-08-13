@@ -5,6 +5,7 @@ from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 
+from apps.audit.services import get_activity_for, record_audit_event
 from apps.core.encrypted_fields import compute_lookup_hash
 from apps.customers.forms import CustomerAccountForm, CustomerForm
 from apps.customers.models import Customer, CustomerAccount
@@ -67,7 +68,10 @@ def customer_detail(request, pk):
         return render(request, "dashboard/no_access.html")
     customer = get_object_or_404(Customer, pk=pk, tenant=request.tenant)
     accounts = customer.accounts.all()
-    return render(request, "customers/detail.html", {"customer": customer, "accounts": accounts})
+    activity = get_activity_for(customer)
+    return render(
+        request, "customers/detail.html", {"customer": customer, "accounts": accounts, "activity": activity}
+    )
 
 
 @login_required
@@ -100,9 +104,25 @@ def customer_create(request):
 def customer_edit(request, pk):
     customer = get_object_or_404(Customer, pk=pk, tenant=request.tenant)
     if request.method == "POST":
+        before = {
+            "full_name": customer.full_name,
+            "email": customer.email,
+            "phone_number": customer.phone_number,
+            "external_reference": customer.external_reference,
+        }
         form = CustomerForm(request.POST, instance=customer)
         if form.is_valid():
             form.save()
+            after = {
+                "full_name": customer.full_name,
+                "email": customer.email,
+                "phone_number": customer.phone_number,
+                "external_reference": customer.external_reference,
+            }
+            record_audit_event(
+                action="customer.updated", actor=request.user, tenant=request.tenant,
+                target=customer, before=before, after=after,
+            )
             messages.success(request, f"Customer '{customer.full_name}' updated.")
             return redirect("customers:detail", pk=customer.pk)
     else:
@@ -121,6 +141,9 @@ def customer_deactivate(request, pk):
     if request.method == "POST":
         customer.is_active = False
         customer.save(update_fields=["is_active", "updated_at"])
+        record_audit_event(
+            action="customer.deactivated", actor=request.user, tenant=request.tenant, target=customer,
+        )
         messages.success(request, f"'{customer.full_name}' deactivated.")
     return redirect("customers:detail", pk=customer.pk)
 
@@ -132,8 +155,38 @@ def customer_activate(request, pk):
     if request.method == "POST":
         customer.is_active = True
         customer.save(update_fields=["is_active", "updated_at"])
+        record_audit_event(
+            action="customer.reactivated", actor=request.user, tenant=request.tenant, target=customer,
+        )
         messages.success(request, f"'{customer.full_name}' reactivated.")
     return redirect("customers:detail", pk=customer.pk)
+
+
+@login_required
+@require_tenant_role(*_CAN_MANAGE)
+def customer_bulk_deactivate(request):
+    """Real bulk operation, not client-side-only checkbox theater — each
+    selected customer gets an individual audit event (same as a
+    one-at-a-time deactivate), so the activity timeline stays complete
+    regardless of which path was used. See docs/DESIGN_SYSTEM.md's
+    "Bulk operations" section."""
+    if request.method == "POST":
+        ids = request.POST.getlist("customer_ids")
+        customers = Customer.objects.filter(pk__in=ids, tenant=request.tenant, is_active=True)
+        count = 0
+        for customer in customers:
+            customer.is_active = False
+            customer.save(update_fields=["is_active", "updated_at"])
+            record_audit_event(
+                action="customer.deactivated", actor=request.user, tenant=request.tenant, target=customer,
+                metadata={"bulk": True},
+            )
+            count += 1
+        if count:
+            messages.success(request, f"{count} customer{'s' if count != 1 else ''} deactivated.")
+        else:
+            messages.info(request, "No customers were selected.")
+    return redirect("customers:list")
 
 
 @login_required

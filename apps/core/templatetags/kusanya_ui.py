@@ -34,6 +34,18 @@ def is_active_ns(context, *namespaces: str) -> str:
     return "active" if request.resolver_match.app_name in namespaces else ""
 
 
+@register.simple_tag(takes_context=True)
+def is_active_view(context, *view_names: str) -> str:
+    """Like is_active_ns, but matches a specific "app:url_name" rather
+    than a whole namespace -- for nav links that share a namespace with
+    other pages (e.g. core:background-jobs vs. core:dashboard-router)
+    and would otherwise both highlight together."""
+    request = context.get("request")
+    if request is None or not getattr(request, "resolver_match", None):
+        return ""
+    return "active" if request.resolver_match.view_name in view_names else ""
+
+
 @register.filter
 def status_badge_class(value) -> str:
     """`{{ payment.status|status_badge_class }}` -> a Bootstrap

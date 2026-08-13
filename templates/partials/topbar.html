@@ -7,6 +7,13 @@
         {% block breadcrumb %}{% endblock %}
     </nav>
 
+    {% if user.is_authenticated %}
+    <button type="button" class="btn btn-sm btn-light border kz-palette-trigger" id="kzPaletteTrigger" aria-label="Search">
+        <i class="bi bi-search"></i> <span class="d-none d-md-inline text-body-secondary">Search…</span>
+        <kbd class="kz-palette-kbd d-none d-md-inline">Ctrl K</kbd>
+    </button>
+    {% endif %}
+
     <div class="ms-auto d-flex align-items-center gap-2">
         {% block topbar_actions %}{% endblock %}
 

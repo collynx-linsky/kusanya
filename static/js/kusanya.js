@@ -115,4 +115,123 @@
   document.body.addEventListener("htmx:sendError", function () {
     showToast("Network error — check your connection and try again.", "danger");
   });
+
+  // ------------------------------------------------------------------
+  // Command palette + keyboard shortcuts (docs/DESIGN_SYSTEM.md).
+  // ------------------------------------------------------------------
+  const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
+  document.querySelectorAll(".kz-palette-kbd").forEach(function (el) {
+    el.textContent = isMac ? "⌘K" : "Ctrl K";
+  });
+
+  const paletteModalEl = document.getElementById("kzPaletteModal");
+  const paletteModal = paletteModalEl && typeof bootstrap !== "undefined" ? new bootstrap.Modal(paletteModalEl) : null;
+  const paletteInput = document.getElementById("kzPaletteInput");
+  const paletteTrigger = document.getElementById("kzPaletteTrigger");
+  const shortcutsModalEl = document.getElementById("kzShortcutsModal");
+  const shortcutsModal = shortcutsModalEl && typeof bootstrap !== "undefined" ? new bootstrap.Modal(shortcutsModalEl) : null;
+
+  if (paletteTrigger && paletteModal) {
+    paletteTrigger.addEventListener("click", function () {
+      paletteModal.show();
+    });
+  }
+  if (paletteModalEl && paletteInput) {
+    paletteModalEl.addEventListener("shown.bs.modal", function () {
+      paletteInput.value = "";
+      paletteInput.focus();
+      htmx.trigger(paletteInput, "load"); // repopulate the "type to search" placeholder each time it opens
+    });
+  }
+
+  function isTypingInField(target) {
+    const tag = target && target.tagName;
+    return tag === "INPUT" || tag === "TEXTAREA" || target.isContentEditable;
+  }
+
+  document.addEventListener("keydown", function (evt) {
+    const mod = isMac ? evt.metaKey : evt.ctrlKey;
+
+    if (mod && evt.key.toLowerCase() === "k") {
+      evt.preventDefault();
+      paletteModal && paletteModal.show();
+      return;
+    }
+
+    if (isTypingInField(evt.target)) return; // everything below is only for "not currently typing"
+
+    if (evt.key === "/") {
+      const searchBox = document.querySelector('input[type="search"]:not(#kzPaletteInput)');
+      if (searchBox) {
+        evt.preventDefault();
+        searchBox.focus();
+      }
+      return;
+    }
+
+    if (evt.key === "?") {
+      evt.preventDefault();
+      shortcutsModal && shortcutsModal.show();
+    }
+  });
+
+  // Arrow-key navigation within the palette's result list.
+  if (paletteInput) {
+    paletteInput.addEventListener("keydown", function (evt) {
+      const results = document.getElementById("kzPaletteResults");
+      if (!results) return;
+      const items = Array.from(results.querySelectorAll(".kz-palette-item"));
+      if (!items.length) return;
+      const current = results.querySelector(".kz-palette-item.active");
+      let index = current ? items.indexOf(current) : -1;
+
+      if (evt.key === "ArrowDown") {
+        evt.preventDefault();
+        index = Math.min(index + 1, items.length - 1);
+      } else if (evt.key === "ArrowUp") {
+        evt.preventDefault();
+        index = Math.max(index - 1, 0);
+      } else if (evt.key === "Enter") {
+        evt.preventDefault();
+        (current || items[0]).click();
+        return;
+      } else {
+        return;
+      }
+      current && current.classList.remove("active");
+      items[index].classList.add("active");
+      items[index].scrollIntoView({ block: "nearest" });
+    });
+  }
+
+  // ------------------------------------------------------------------
+  // Bulk-selection toolbar (docs/DESIGN_SYSTEM.md's "Bulk operations").
+  // Delegated to document.body so it keeps working after an HTMX
+  // partial swap replaces the table (e.g. after a search).
+  // ------------------------------------------------------------------
+  function refreshBulkBar(scope) {
+    const bar = scope.querySelector(".kz-bulk-bar") || document.getElementById("kz-bulk-bar");
+    const countEl = document.getElementById("kz-bulk-count");
+    const checked = document.querySelectorAll(".kz-bulk-checkbox:checked");
+    if (!bar) return;
+    if (checked.length > 0) {
+      bar.classList.remove("d-none");
+      bar.classList.add("d-flex");
+    } else {
+      bar.classList.add("d-none");
+      bar.classList.remove("d-flex");
+    }
+    if (countEl) countEl.textContent = String(checked.length);
+  }
+
+  document.body.addEventListener("change", function (evt) {
+    if (evt.target.id === "kz-bulk-select-all") {
+      document.querySelectorAll(".kz-bulk-checkbox").forEach(function (cb) {
+        cb.checked = evt.target.checked;
+      });
+      refreshBulkBar(document);
+    } else if (evt.target.classList.contains("kz-bulk-checkbox")) {
+      refreshBulkBar(document);
+    }
+  });
 })();

@@ -27,35 +27,54 @@
     </div>
 
     {% if page_obj.object_list %}
-    <div class="table-responsive">
-        <table class="table kz-table mb-0">
-            <thead>
-                <tr>
-                    <th>Name</th>
-                    <th>Email</th>
-                    <th>Phone</th>
-                    <th>Accounts</th>
-                    <th>
-                        <a href="{% querystring_with sort=sort|yesno:'created_at,-created_at' %}">
-                            Created
-                            {% if sort == "-created_at" %}<i class="bi bi-caret-down-fill"></i>{% elif sort == "created_at" %}<i class="bi bi-caret-up-fill"></i>{% endif %}
-                        </a>
-                    </th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for customer in page_obj.object_list %}
-                <tr>
-                    <td><a href="{% url 'customers:detail' customer.pk %}">{{ customer.full_name }}</a></td>
-                    <td>{{ customer.email|default:"—" }}</td>
-                    <td>{{ customer.phone_number|default:"—" }}</td>
-                    <td>{{ customer.accounts.count }}</td>
-                    <td class="text-body-secondary">{{ customer.created_at|date:"d M Y" }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
+    {% comment %}
+    Bulk operations: real form POST to customers:bulk-deactivate, not a
+    client-side-only affordance. See docs/DESIGN_SYSTEM.md's "Bulk
+    operations" section for why a native confirm() (not another
+    Bootstrap modal) is used here specifically -- the confirmation text
+    depends on a dynamically changing selection count.
+    {% endcomment %}
+    <form method="post" action="{% url 'customers:bulk-deactivate' %}" id="kz-bulk-form"
+          onsubmit="return confirm('Deactivate ' + document.querySelectorAll('.kz-bulk-checkbox:checked').length + ' selected customer(s)? Their accounts and history are kept.');">
+        {% csrf_token %}
+        <div class="kz-bulk-bar d-none align-items-center gap-2 px-3 py-2 border-bottom bg-body-tertiary" id="kz-bulk-bar">
+            <span class="small fw-semibold"><span id="kz-bulk-count">0</span> selected</span>
+            <button type="submit" class="btn btn-sm btn-outline-danger">
+                <i class="bi bi-slash-circle"></i> Deactivate selected
+            </button>
+        </div>
+        <div class="table-responsive">
+            <table class="table kz-table mb-0">
+                <thead>
+                    <tr>
+                        <th class="kz-checkbox-col"><input type="checkbox" class="form-check-input" id="kz-bulk-select-all" aria-label="Select all"></th>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Phone</th>
+                        <th>Accounts</th>
+                        <th>
+                            <a href="{% querystring_with sort=sort|yesno:'created_at,-created_at' %}">
+                                Created
+                                {% if sort == "-created_at" %}<i class="bi bi-caret-down-fill"></i>{% elif sort == "created_at" %}<i class="bi bi-caret-up-fill"></i>{% endif %}
+                            </a>
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for customer in page_obj.object_list %}
+                    <tr>
+                        <td><input type="checkbox" class="form-check-input kz-bulk-checkbox" name="customer_ids" value="{{ customer.pk }}" aria-label="Select {{ customer.full_name }}"></td>
+                        <td><a href="{% url 'customers:detail' customer.pk %}">{{ customer.full_name }}</a></td>
+                        <td>{{ customer.email|default:"—" }}</td>
+                        <td>{{ customer.phone_number|default:"—" }}</td>
+                        <td>{{ customer.accounts.count }}</td>
+                        <td class="text-body-secondary">{{ customer.created_at|date:"d M Y" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </form>
     {% include "components/pagination.html" with page_obj=page_obj %}
     {% elif query %}
     {% include "components/empty_state.html" with icon="bi-search" title="No exact match" body="Search matches the complete name, email, or phone number only — not a partial match. Double-check spelling, or try the external reference instead." %}

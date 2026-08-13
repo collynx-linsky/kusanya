@@ -14,6 +14,7 @@ in section 27's list actually lives.
 from datetime import datetime
 
 from django.contrib.auth.decorators import login_required
+from django.core.paginator import Paginator
 from django.db.models import Sum
 from django.shortcuts import render
 
@@ -187,7 +188,7 @@ def audit_report(request):
     if request.tenant is None:
         return render(request, "dashboard/no_access.html")
 
-    events = AuditLog.objects.filter(tenant=request.tenant).order_by("-created_at")
+    events = AuditLog.objects.filter(tenant=request.tenant).select_related("actor").order_by("-created_at")
 
     action = request.GET.get("action", "")
     if action:
@@ -199,4 +200,17 @@ def audit_report(request):
     if date_to:
         events = events.filter(created_at__date__lte=date_to)
 
-    return render(request, "reports/audit.html", {"events": events[:500]})
+    if request.GET.get("format") == "csv":
+        return render_csv(
+            "audit_events.csv",
+            ["Date", "Action", "Actor", "Correlation ID"],
+            ([e.created_at, e.action, e.actor_label or "system", e.correlation_id] for e in events),
+        )
+
+    paginator = Paginator(events, 50)
+    page_obj = paginator.get_page(request.GET.get("page"))
+
+    context = {"page_obj": page_obj, "events": page_obj.object_list, "action": action}
+    if request.headers.get("HX-Request") and request.headers.get("HX-Target") == "kz-audit-table":
+        return render(request, "reports/_audit_table.html", context)
+    return render(request, "reports/audit.html", context)
