@@ -26,9 +26,14 @@ def home(request):
 def health_check(request):
     """Liveness/readiness probe. Unauthenticated by design (infra probes).
 
-    Checks the two hard dependencies every request path relies on:
-    PostgreSQL and Redis (cache). Celery/broker health is reported
-    separately once background tasks exist to check (Phase 2+).
+    Checks every hard dependency a request or a background task actually
+    relies on: PostgreSQL, Redis-as-cache, and Redis-as-Celery-broker.
+    The cache and broker checks are against the same Redis instance in
+    development but are deliberately checked independently — they're
+    logically separate concerns (a cache outage degrades performance; a
+    broker outage means nothing in apps.webhooks/apps.notifications/etc.
+    ever gets delivered) and could point at different instances in a
+    real deployment.
     """
     checks = {}
     healthy = True
@@ -48,6 +53,17 @@ def health_check(request):
             healthy = False
     except Exception as exc:  # noqa: BLE001
         checks["cache"] = f"error: {exc}"
+        healthy = False
+
+    try:
+        import redis as redis_lib
+        from django.conf import settings
+
+        broker_client = redis_lib.from_url(settings.CELERY_BROKER_URL, socket_connect_timeout=2)
+        broker_client.ping()
+        checks["celery_broker"] = "ok"
+    except Exception as exc:  # noqa: BLE001
+        checks["celery_broker"] = f"error: {exc}"
         healthy = False
 
     return JsonResponse(

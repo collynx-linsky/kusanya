@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Your backup codes{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-12 col-lg-6">
+        <div class="alert alert-warning">
+            <strong>These codes are shown once.</strong> Each can be used a
+            single time to sign in if you lose access to your authenticator
+            app. Store them somewhere safe — KUSANYA cannot show them to you
+            again; you'd need to regenerate a new set, invalidating these.
+        </div>
+        <div class="card shadow-sm">
+            <div class="card-body p-4">
+                <h1 class="h4 mb-3">Your backup codes</h1>
+                <div class="row row-cols-2 g-2 font-monospace">
+                    {% for code in codes %}
+                    <div class="col"><div class="bg-body-tertiary p-2 rounded text-center">{{ code }}</div></div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        <div class="text-center mt-3">
+            <a href="{% url 'accounts:mfa-status' %}" class="btn btn-outline-secondary">Done</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Security{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-12 col-lg-6">
+        <h1 class="h4 mb-3">Two-factor authentication</h1>
+        <div class="card shadow-sm">
+            <div class="card-body p-4">
+                {% if device %}
+                    <p>
+                        <span class="badge text-bg-success">Enabled</span>
+                        Last used: {{ device.last_used_at|date:"Y-m-d H:i"|default:"Never" }}
+                    </p>
+                    <p class="text-body-secondary small">{{ backup_codes_remaining }} unused backup code(s) remaining.</p>
+                    <form method="post" action="{% url 'accounts:mfa-backup-codes-regenerate' %}" class="mb-2">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-outline-secondary w-100">Regenerate backup codes</button>
+                    </form>
+                    <form method="post" action="{% url 'accounts:mfa-disable' %}"
+                          onsubmit="return confirm('Disable two-factor authentication on this account?');">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-outline-danger w-100">Disable MFA</button>
+                    </form>
+                {% else %}
+                    <p class="text-body-secondary">
+                        Not enabled. Add an authenticator app for an extra layer
+                        of protection on your account.
+                    </p>
+                    <a href="{% url 'accounts:mfa-setup' %}" class="btn btn-primary w-100">Set up MFA</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

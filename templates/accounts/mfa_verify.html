@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Verify your identity{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-12 col-md-6 col-lg-4">
+        <div class="card shadow-sm">
+            <div class="card-body p-4">
+                <h1 class="h4 mb-3">Enter your 6-digit code</h1>
+                <p class="text-body-secondary small">
+                    From your authenticator app, or one of your backup codes.
+                </p>
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <input type="text" name="code" class="form-control form-control-lg text-center"
+                               inputmode="numeric" autocomplete="one-time-code" autofocus
+                               placeholder="123456" maxlength="12">
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">Verify</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

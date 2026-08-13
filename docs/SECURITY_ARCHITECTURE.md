@@ -43,6 +43,35 @@ overstating any of these would be its own security problem.
   if `DJANGO_SECRET_KEY`/`DJANGO_ALLOWED_HOSTS` aren't explicitly set,
   rather than silently falling back to an insecure default.
 
+## Implemented (Phase 7)
+
+- **Multi-factor authentication** — TOTP (RFC 6238), hand-implemented with
+  no external dependency (`apps.accounts.totp`), 6-digit codes, 30-second
+  period, ±1 period drift window. A user with a confirmed `MFADevice` is
+  intercepted after a correct password and is not granted a session until
+  they also supply a valid code (`apps.accounts.views.mfa_verify`) — see
+  ADR-025 for why setup shows the secret/`otpauth://` URI as text rather
+  than a rendered QR image.
+- **Backup/recovery codes** — 10 single-use codes issued once MFA is
+  confirmed, shown exactly once. Stored as a keyed HMAC-SHA256 lookup hash
+  (`apps.accounts.models._backup_code_lookup_hash`), not PBKDF2 — see
+  ADR-027 for why a high-entropy random token doesn't need (and, as a live
+  test measurement showed, really shouldn't use) a deliberately-slow
+  password hash, and for the incident that prompted the redesign.
+- **Login and MFA brute-force lockout** — cache-backed counters
+  (`apps.accounts.throttle`), 5 failed attempts locks out further tries
+  for 15 minutes, keyed per (client IP, submitted email) for login and per
+  user for MFA code entry.
+- **CI pipeline** — GitHub Actions (`.github/workflows/ci.yml`) runs on
+  every push/PR: `manage.py check`, `check --deploy` against production
+  settings, migrations, the full pytest suite, and an informational
+  `pip-audit` pass (see ADR-026 for why it doesn't fail the build).
+- **Structured JSON logging** — production-only
+  (`apps.core.logging.JsonFormatter`), one JSON object per line, carries
+  the existing correlation ID.
+- **Deeper health check** — `/healthz/` independently pings PostgreSQL,
+  the cache, and the Celery broker (previously database + cache only).
+
 ## Configured but not yet exercised
 
 - **HTTPS/TLS termination** — assumed to happen at a reverse proxy /
@@ -56,26 +85,27 @@ overstating any of these would be its own security problem.
 
 ## Explicitly not implemented yet
 
-- **MFA** — no second factor. "MFA-ready" means the auth stack doesn't
-  preclude adding it (Django's `django-otp` or similar would slot into
-  the existing `AuthenticationMiddleware` chain), not that it exists.
-- **Rate limiting** — no request throttling on login or any endpoint yet.
-  Needed before production, especially on `/accounts/login/` and any
-  future API token endpoints.
 - **Field-level encryption** — no encrypted model fields yet; nothing in
-  Phase 1's data model (email, names, tenant contact info) is currently
-  classified as requiring it, but payment-adjacent PII in later phases
-  should be revisited against Tanzania's Personal Data Protection Act
-  obligations — see [compliance/REGULATORY_ASSUMPTIONS.md](compliance/REGULATORY_ASSUMPTIONS.md).
-- **API authentication** (API keys, secret rotation, request signing) —
-  doesn't exist yet; there is no external API surface yet (Phase 6).
-- **Webhook signature verification** — doesn't exist yet; no webhooks
-  exist yet (Phase 3/6).
-- **Automated security testing** (SAST/dependency scanning in CI) — no CI
-  pipeline exists yet.
-- **Monitoring/alerting, intrusion detection** — out of scope for Phase
-  1; `apps.core.views.health_check` exists as the integration point for a
-  future uptime monitor, nothing more.
+  the current data model (email, names, tenant contact info) is currently
+  classified as requiring it, but payment-adjacent PII should be
+  revisited against Tanzania's Personal Data Protection Act obligations —
+  see [compliance/REGULATORY_ASSUMPTIONS.md](compliance/REGULATORY_ASSUMPTIONS.md).
+- **Rate limiting beyond login/MFA** — the API layer has per-credential
+  throttling (Phase 6, `apps.api.throttling`) and login/MFA now has
+  brute-force lockout (Phase 7), but ordinary authenticated web views have
+  no general request-rate limiting.
+- **SAST (static application security testing)** — CI runs `pip-audit`
+  (dependency vulnerabilities only, informational); no static analysis of
+  KUSANYA's own code (e.g. Bandit) runs yet.
+- **Monitoring/alerting, intrusion detection** — `apps.core.views.health_check`
+  is a real liveness/readiness probe (database, cache, and Celery broker,
+  Phase 7), but nothing is actually polling it, and there's no alerting,
+  APM, or intrusion detection wired up. `SENTRY_DSN` is a wiring point in
+  `production.py`, inert until a DSN is provisioned.
+- **MFA is opt-in, not enforced** — a confirmed `MFADevice` gates login,
+  but nothing requires platform staff or tenant staff to enable one.
+  Making MFA mandatory for specific roles (e.g. platform staff) is a
+  policy decision for a future phase, not a technical gap.
 
 ## What this document is not claiming
 

@@ -76,7 +76,7 @@
                 {% endif %}
                 {% if user.is_authenticated %}
                 <li class="nav-item">
-                    <span class="navbar-text me-3">{{ user.email }}</span>
+                    <a class="nav-link" href="{% url 'accounts:mfa-status' %}" title="Security">{{ user.email }}</a>
                 </li>
                 <li class="nav-item">
                     <form method="post" action="{% url 'accounts:logout' %}" class="d-inline">

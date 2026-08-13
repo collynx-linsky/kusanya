@@ -1,0 +1,82 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: kusanya
+          POSTGRES_USER: kusanya
+          POSTGRES_PASSWORD: kusanya
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DJANGO_SETTINGS_MODULE: config.settings.testing
+      DATABASE_URL: postgres://kusanya:kusanya@localhost:5432/kusanya
+      REDIS_URL: redis://localhost:6379/0
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: requirements/development.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements/development.txt
+
+      - name: Django system check
+        run: python manage.py check
+
+      - name: Django system check (production settings, deploy checks)
+        # Dummy-but-well-formed secrets, for CI validation only — never
+        # real values. Confirms production.py's fail-loud guards (see
+        # ARCHITECTURE_DECISIONS ADR-007) don't block on missing config
+        # they SHOULD require, and that --deploy doesn't flag anything
+        # new.
+        env:
+          DJANGO_SETTINGS_MODULE: config.settings.production
+          DJANGO_SECRET_KEY: ci-only-not-a-real-secret-${{ github.sha }}
+          DJANGO_ALLOWED_HOSTS: example.com
+          DJANGO_SECURE_SSL_REDIRECT: "False"
+        run: python manage.py check --deploy
+
+      - name: Run migrations
+        run: python manage.py migrate --noinput
+
+      - name: Run tests
+        run: python -m pytest -v
+
+      - name: Dependency vulnerability scan
+        # Informational only (never fails the build) — see
+        # ARCHITECTURE_DECISIONS ADR-026 for why a new CVE disclosure in
+        # a transitive dependency shouldn't block every unrelated PR.
+        run: |
+          pip install pip-audit
+          pip-audit -r requirements/base.txt || true

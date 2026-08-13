@@ -694,3 +694,95 @@ this), migrate the integration to it, confirm it's working, *then* revoke
 the first one — never rotate a credential that's currently serving live
 traffic. Worth revisiting if/when a real integration partner specifically
 needs zero-downtime rotation.
+
+## ADR-025: MFA setup shows the secret and `otpauth://` URI as text, not a rendered QR code
+
+**Decision:** `apps.accounts.portal_views.mfa_setup` gives the user the
+raw Base32 secret and the full `otpauth://totp/...` URI
+(`apps.accounts.totp.build_otpauth_uri`) as plain text/a copyable link.
+It does not render a QR image for an authenticator app to scan.
+
+**Reason:** Generating a QR code image server-side means either a new
+dependency (`qrcode` + `Pillow`) or hand-rolling QR encoding — real
+complexity for a Phase 7 feature whose actual requirement (build spec
+section 28's "MFA-ready") is met by any correct TOTP enrollment path.
+Every mainstream authenticator app (Google Authenticator, Authy, 1Password,
+Aegis, etc.) accepts manual secret entry, and the `otpauth://` URI is
+itself pasteable into apps that support "add via link." A QR code is a
+UX nicety, not a correctness requirement.
+
+**Consequences:** Setup is one extra manual step (typing/copying a
+32-character secret) versus scanning a camera. Worth adding a QR image
+later — a small, self-contained addition, not a rework — if user feedback
+says the manual-entry friction matters in practice.
+
+## ADR-026: `pip-audit` in CI is informational-only, never fails the build
+
+**Decision:** `.github/workflows/ci.yml`'s dependency vulnerability scan
+step runs `pip-audit -r requirements/base.txt || true` — a nonzero exit
+(meaning a known CVE was found in some installed package) does not fail
+the CI run.
+
+**Reason:** A hard-fail policy means every new CVE disclosure in any
+transitive dependency — including ones KUSANYA doesn't exercise in a
+vulnerable way, or ones with no available fixed version yet — blocks
+every unrelated pull request the moment it's disclosed, with no
+mechanism in Phase 7 to acknowledge/allowlist a specific finding. That's
+a workflow that trains people to ignore or bypass CI, which is worse than
+not scanning at all.
+
+**Consequences:** A real, actionable vulnerability can land and sit
+unnoticed if nobody reads the CI log for that step. This is a real gap,
+not a nonissue — revisit if/when there's a triage process (e.g. a
+`pip-audit --ignore-vuln` allowlist reviewed on a schedule) that can
+support a hard-fail policy without the false-positive-blocks-everything
+problem.
+
+## ADR-027: Backup codes are matched by a keyed HMAC-SHA256 lookup hash, not `make_password`/PBKDF2
+
+**Decision:** `BackupCode.lookup_hash` stores `HMAC-SHA256(key=SECRET_KEY,
+msg=normalized_code)` (`apps.accounts.models._backup_code_lookup_hash`),
+looked up with an indexed exact-match query
+(`BackupCode.objects.filter(user=user, lookup_hash=..., used_at__isnull=True)`).
+The original Phase 7 implementation used Django's `make_password`/
+`check_password` (PBKDF2) instead, checked in a loop over every unused
+code — replaced by this ADR.
+
+**Reason:** Live testing (not the automated suite — see below) measured
+`consume_backup_code()` at **18.7 seconds** to reject one wrong code
+against a user with 10 unused backup codes: ~1.9 seconds per PBKDF2
+`check_password()` call, times up to 10 rows scanned linearly. PBKDF2's
+deliberate slowness exists to resist offline dictionary/brute-force
+search of a *low-entropy, user-chosen* secret (a password) — it's the
+wrong tool for a backup code, which is ~52 bits of `secrets`-module
+randomness that was never guessable in the first place. The property
+that actually matters — never storing the raw code — is fully satisfied
+by a keyed HMAC: it's a real cryptographic MAC, unforgeable without
+`SECRET_KEY`, and, unlike PBKDF2, cheap enough to use as an indexed exact
+match instead of a linear scan-and-hash. `apps.accounts.mfa_services`
+also adds a cheap format pre-check (`_looks_like_backup_code`) so an
+ordinary mistyped 6-digit TOTP guess — the overwhelmingly common failed
+MFA attempt — never touches the backup-code table at all.
+
+This is also why the automated test suite didn't catch the original
+defect: `config/settings/testing.py` overrides `PASSWORD_HASHERS` to the
+fast `MD5PasswordHasher` for test speed, which made every `check_password`
+call in tests near-instant regardless of algorithm choice, masking the
+real cost of PBKDF2 under the actual production-equivalent hasher used
+in `development.py`/production. Only a live, real-hasher measurement
+surfaced it — reinforcing why this codebase treats live verification, not
+just green automated tests, as a precondition for calling a phase done
+(see the Phase 1-7 development reports).
+
+**Consequences:** Losing `SECRET_KEY` (e.g. a full server compromise)
+means an attacker with database access could, in principle, verify
+guesses against `lookup_hash` at HMAC speed rather than PBKDF2 speed —
+but they'd need both the database *and* `SECRET_KEY` *and* still be
+guessing a 52-bit random value with no dictionary to search, which is not
+a meaningfully weaker position than they'd already be in from a full
+server compromise (they could rotate `SECRET_KEY` themselves, read
+plaintext from live requests, or forge sessions directly). Rotating
+`SECRET_KEY` invalidates all outstanding backup codes' lookup hashes,
+same as it already invalidates all sessions and signed tokens today —
+an accepted, pre-existing tradeoff of using `SECRET_KEY` for signing
+throughout this codebase, not a new one introduced here.

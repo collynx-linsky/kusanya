@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Set up MFA{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-12 col-lg-6">
+        <div class="card shadow-sm">
+            <div class="card-body p-4">
+                <h1 class="h4 mb-3">Set up two-factor authentication</h1>
+                <ol class="small text-body-secondary">
+                    <li>Open your authenticator app (Google Authenticator, Authy, 1Password, etc.).</li>
+                    <li>Add a new account, entering the secret key below manually
+                        (or importing the setup URI, if your app supports it).</li>
+                    <li>Enter the 6-digit code it generates to confirm setup.</li>
+                </ol>
+
+                <div class="mb-3">
+                    <label class="form-label">Secret key</label>
+                    <div class="font-monospace bg-body-tertiary p-2 rounded">{{ device.secret }}</div>
+                </div>
+                <div class="mb-4">
+                    <label class="form-label">Setup URI</label>
+                    <div class="font-monospace small bg-body-tertiary p-2 rounded text-break">{{ otpauth_uri }}</div>
+                </div>
+
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label class="form-label" for="code">Enter the 6-digit code to confirm</label>
+                        <input type="text" name="code" id="code" class="form-control" inputmode="numeric"
+                               placeholder="123456" maxlength="6" autofocus>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">Confirm and enable MFA</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

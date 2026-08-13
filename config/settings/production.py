@@ -27,6 +27,13 @@ SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 CSRF_TRUSTED_ORIGINS = env.list("DJANGO_CSRF_TRUSTED_ORIGINS", default=[])
 
+# Structured (one-JSON-object-per-line) logging — see
+# apps/core/logging.py::JsonFormatter and docs/SECURITY_ARCHITECTURE.md.
+# Only the formatter changes; handlers/filters/loggers are inherited from
+# base.py unmodified.
+LOGGING["formatters"]["json"] = {"()": "apps.core.logging.JsonFormatter"}
+LOGGING["handlers"]["console"]["formatter"] = "json"
+
 # Sentry (or equivalent) wiring point — intentionally not activated until a
 # DSN is actually provisioned. See docs/DEPLOYMENT.md.
 SENTRY_DSN = env("SENTRY_DSN", default="")
