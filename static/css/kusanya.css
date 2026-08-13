@@ -1,15 +1,533 @@
-/* KUSANYA — minimal brand overrides on top of Bootstrap 5.
-   Kept intentionally small in Phase 1; a fuller design system arrives with
-   the dashboards/reporting work (build spec section 26–27). */
+/* KUSANYA — application shell, components, and utilities.
+   Reads exclusively from design-tokens.css custom properties — never a
+   hardcoded color/spacing value here. See docs/DESIGN_SYSTEM.md. */
 
-:root {
-    --kusanya-ink: #10182b;
+/* ============================================================
+   Base
+   ============================================================ */
+
+body {
+  background: var(--kz-surface-sunken);
+  color: var(--kz-text);
+  -webkit-font-smoothing: antialiased;
 }
 
-.navbar-brand {
-    letter-spacing: 0.02em;
+a {
+  text-decoration: none;
 }
 
-.display-6 {
-    font-variant-numeric: tabular-nums;
+.text-muted,
+.text-body-secondary {
+  color: var(--kz-text-muted) !important;
+}
+
+/* ============================================================
+   App shell — persistent sidebar (desktop) + top bar + content
+   ============================================================ */
+
+.kz-shell {
+  display: flex;
+  min-height: 100vh;
+}
+
+.kz-sidebar {
+  position: fixed;
+  inset-block: 0;
+  inset-inline-start: 0;
+  width: var(--kz-sidebar-width);
+  background: var(--kz-sidebar-bg);
+  color: var(--kz-sidebar-text);
+  display: flex;
+  flex-direction: column;
+  z-index: 1030;
+  transition: transform var(--kz-transition-base);
+}
+
+.kz-sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--kz-space-2);
+  height: var(--kz-topbar-height);
+  padding-inline: var(--kz-space-4);
+  color: #fff;
+  font-weight: 600;
+  font-size: var(--kz-text-lg);
+  letter-spacing: 0.01em;
+  border-bottom: 1px solid var(--kz-sidebar-border);
+  flex-shrink: 0;
+}
+
+.kz-sidebar-brand:hover {
+  color: #fff;
+}
+
+.kz-sidebar-nav {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--kz-space-3) var(--kz-space-2);
+}
+
+.kz-nav-section {
+  margin-top: var(--kz-space-4);
+}
+
+.kz-nav-section:first-child {
+  margin-top: 0;
+}
+
+.kz-nav-section-label {
+  font-size: var(--kz-text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--kz-sidebar-text-muted);
+  padding: var(--kz-space-2) var(--kz-space-3);
+}
+
+.kz-nav-link {
+  display: flex;
+  align-items: center;
+  gap: var(--kz-space-3);
+  padding: var(--kz-space-2) var(--kz-space-3);
+  border-radius: var(--kz-radius-md);
+  color: var(--kz-sidebar-text);
+  font-size: var(--kz-text-sm);
+  font-weight: 500;
+  line-height: var(--kz-leading-tight);
+  transition: background var(--kz-transition-fast), color var(--kz-transition-fast);
+}
+
+.kz-nav-link:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+}
+
+.kz-nav-link.active {
+  background: var(--kz-sidebar-active-bg);
+  color: var(--kz-sidebar-active-text);
+}
+
+.kz-nav-link .kz-nav-icon {
+  width: 1.1rem;
+  text-align: center;
+  flex-shrink: 0;
+  opacity: 0.85;
+}
+
+.kz-nav-link .kz-nav-badge {
+  margin-inline-start: auto;
+}
+
+.kz-sidebar-footer {
+  padding: var(--kz-space-3);
+  border-top: 1px solid var(--kz-sidebar-border);
+  flex-shrink: 0;
+}
+
+.kz-main {
+  flex: 1;
+  margin-inline-start: var(--kz-sidebar-width);
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.kz-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 1020;
+  height: var(--kz-topbar-height);
+  display: flex;
+  align-items: center;
+  gap: var(--kz-space-3);
+  padding-inline: var(--kz-space-4);
+  background: var(--kz-surface);
+  border-bottom: 1px solid var(--kz-border);
+}
+
+.kz-topbar-toggle {
+  display: none;
+}
+
+.kz-content {
+  flex: 1;
+  padding: var(--kz-space-5);
+  max-width: 90rem;
+  width: 100%;
+  margin-inline: auto;
+}
+
+.kz-content-narrow {
+  max-width: 34rem;
+}
+
+.kz-page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--kz-space-4);
+  margin-bottom: var(--kz-space-5);
+  flex-wrap: wrap;
+}
+
+.kz-page-title {
+  font-size: var(--kz-text-2xl);
+  font-weight: 650;
+  color: var(--kz-text);
+  margin: 0;
+  line-height: var(--kz-leading-tight);
+}
+
+.kz-page-subtitle {
+  color: var(--kz-text-muted);
+  font-size: var(--kz-text-sm);
+  margin-top: var(--kz-space-1);
+}
+
+.kz-breadcrumb {
+  font-size: var(--kz-text-sm);
+  color: var(--kz-text-muted);
+  display: flex;
+  align-items: center;
+  gap: var(--kz-space-2);
+  flex-wrap: wrap;
+}
+
+.kz-breadcrumb a {
+  color: var(--kz-text-muted);
+}
+
+.kz-breadcrumb a:hover {
+  color: var(--kz-text);
+}
+
+/* Responsive: sidebar becomes an off-canvas drawer below lg */
+@media (max-width: 991.98px) {
+  .kz-sidebar {
+    transform: translateX(-100%);
+    box-shadow: var(--kz-shadow-lg);
+  }
+
+  .kz-sidebar.show {
+    transform: translateX(0);
+  }
+
+  .kz-main {
+    margin-inline-start: 0;
+  }
+
+  .kz-topbar-toggle {
+    display: inline-flex;
+  }
+
+  .kz-sidebar-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.5);
+    z-index: 1025;
+  }
+
+  .kz-sidebar-backdrop.show {
+    display: block;
+  }
+}
+
+/* ============================================================
+   Cards / stat cards
+   ============================================================ */
+
+.kz-card {
+  background: var(--kz-surface-raised);
+  border: 1px solid var(--kz-border);
+  border-radius: var(--kz-radius-lg);
+  box-shadow: var(--kz-shadow-sm);
+}
+
+.kz-card-body {
+  padding: var(--kz-space-5);
+}
+
+.kz-card-header {
+  padding: var(--kz-space-4) var(--kz-space-5);
+  border-bottom: 1px solid var(--kz-border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--kz-space-3);
+}
+
+.kz-card-header h2,
+.kz-card-header h3 {
+  font-size: var(--kz-text-base);
+  font-weight: 600;
+  margin: 0;
+}
+
+.kz-stat-card {
+  background: var(--kz-surface-raised);
+  border: 1px solid var(--kz-border);
+  border-radius: var(--kz-radius-lg);
+  padding: var(--kz-space-4) var(--kz-space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--kz-space-1);
+  transition: border-color var(--kz-transition-fast), box-shadow var(--kz-transition-fast);
+}
+
+a.kz-stat-card {
+  color: inherit;
+}
+
+a.kz-stat-card:hover {
+  border-color: var(--kz-border-strong);
+  box-shadow: var(--kz-shadow-md);
+}
+
+.kz-stat-label {
+  font-size: var(--kz-text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--kz-text-muted);
+}
+
+.kz-stat-value {
+  font-size: var(--kz-text-2xl);
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  color: var(--kz-text);
+  line-height: var(--kz-leading-tight);
+}
+
+.kz-stat-meta {
+  font-size: var(--kz-text-xs);
+  color: var(--kz-text-subtle);
+}
+
+/* ============================================================
+   Tables
+   ============================================================ */
+
+.kz-table-wrap {
+  background: var(--kz-surface-raised);
+  border: 1px solid var(--kz-border);
+  border-radius: var(--kz-radius-lg);
+  overflow: hidden;
+}
+
+.kz-table-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--kz-space-3);
+  padding: var(--kz-space-3) var(--kz-space-4);
+  border-bottom: 1px solid var(--kz-border);
+  flex-wrap: wrap;
+}
+
+.kz-search-input {
+  width: 20rem;
+  max-width: 100%;
+}
+
+.kz-table-toolbar-filters {
+  display: flex;
+  align-items: center;
+  gap: var(--kz-space-2);
+  flex-wrap: wrap;
+}
+
+.kz-table {
+  margin: 0;
+  font-size: var(--kz-text-sm);
+}
+
+.kz-table thead th {
+  background: var(--kz-surface-sunken);
+  color: var(--kz-text-muted);
+  font-size: var(--kz-text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid var(--kz-border);
+  padding: var(--kz-space-3) var(--kz-space-4);
+  white-space: nowrap;
+}
+
+.kz-table th a {
+  color: inherit;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--kz-space-1);
+}
+
+.kz-table th a:hover {
+  color: var(--kz-text);
+}
+
+.kz-table tbody td {
+  padding: var(--kz-space-3) var(--kz-space-4);
+  vertical-align: middle;
+  border-bottom: 1px solid var(--kz-border);
+}
+
+.kz-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.kz-table tbody tr {
+  transition: background var(--kz-transition-fast);
+}
+
+.kz-table tbody tr:hover {
+  background: var(--kz-surface-sunken);
+}
+
+.kz-table-pagination {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--kz-space-3);
+  padding: var(--kz-space-3) var(--kz-space-4);
+  border-top: 1px solid var(--kz-border);
+  font-size: var(--kz-text-sm);
+  color: var(--kz-text-muted);
+  flex-wrap: wrap;
+}
+
+/* ============================================================
+   Empty / error states
+   ============================================================ */
+
+.kz-empty-state {
+  text-align: center;
+  padding: var(--kz-space-8) var(--kz-space-5);
+  color: var(--kz-text-muted);
+}
+
+.kz-empty-state-icon {
+  font-size: 1.75rem;
+  color: var(--kz-text-subtle);
+  margin-bottom: var(--kz-space-3);
+}
+
+.kz-empty-state-title {
+  color: var(--kz-text);
+  font-weight: 600;
+  margin-bottom: var(--kz-space-1);
+}
+
+.kz-empty-state-body {
+  font-size: var(--kz-text-sm);
+  max-width: 28rem;
+  margin-inline: auto;
+}
+
+/* ============================================================
+   Forms (crispy-forms bootstrap5 pack renders standard Bootstrap
+   markup — these rules style the wrapping card, not the widgets)
+   ============================================================ */
+
+.kz-form-card {
+  background: var(--kz-surface-raised);
+  border: 1px solid var(--kz-border);
+  border-radius: var(--kz-radius-lg);
+  padding: var(--kz-space-5);
+  max-width: 40rem;
+}
+
+.kz-form-card .form-label {
+  font-weight: 500;
+  font-size: var(--kz-text-sm);
+}
+
+.kz-form-actions {
+  display: flex;
+  gap: var(--kz-space-2);
+  margin-top: var(--kz-space-4);
+  padding-top: var(--kz-space-4);
+  border-top: 1px solid var(--kz-border);
+}
+
+/* ============================================================
+   Loading / HTMX states
+   ============================================================ */
+
+.kz-progress-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 2px;
+  width: 0;
+  background: var(--kz-brand-500);
+  z-index: 2000;
+  transition: width 300ms ease, opacity 200ms ease;
+  opacity: 0;
+}
+
+.kz-progress-bar.htmx-request {
+  opacity: 1;
+  width: 70%;
+}
+
+.htmx-indicator {
+  opacity: 0;
+  transition: opacity var(--kz-transition-fast);
+}
+
+.htmx-request.htmx-indicator,
+.htmx-request .htmx-indicator {
+  opacity: 1;
+}
+
+.kz-skeleton {
+  background: linear-gradient(90deg, var(--kz-surface-sunken) 25%, var(--kz-border) 50%, var(--kz-surface-sunken) 75%);
+  background-size: 200% 100%;
+  animation: kz-skeleton-pulse 1.4s ease infinite;
+  border-radius: var(--kz-radius-sm);
+}
+
+@keyframes kz-skeleton-pulse {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ============================================================
+   Toasts (HTMX out-of-band swaps target #kz-toasts)
+   ============================================================ */
+
+.kz-toast-region {
+  position: fixed;
+  top: var(--kz-space-4);
+  right: var(--kz-space-4);
+  z-index: 2100;
+  display: flex;
+  flex-direction: column;
+  gap: var(--kz-space-2);
+  width: 22rem;
+  max-width: calc(100vw - 2rem);
+}
+
+/* ============================================================
+   Misc
+   ============================================================ */
+
+.display-6,
+.kz-stat-value {
+  font-variant-numeric: tabular-nums;
+}
+
+.kz-avatar {
+  width: 2rem;
+  height: 2rem;
+  border-radius: var(--kz-radius-full);
+  background: var(--kz-brand-100);
+  color: var(--kz-brand-700);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--kz-text-xs);
+  font-weight: 600;
+  flex-shrink: 0;
 }

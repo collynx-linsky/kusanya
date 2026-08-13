@@ -62,7 +62,15 @@ THIRD_PARTY_APPS = [
     "drf_spectacular",
     "django_filters",
     "django_celery_beat",
+    # Server-rendered form markup (Bootstrap 5) — not a frontend framework,
+    # just consistent, accessible <form> HTML generation. See
+    # docs/DESIGN_SYSTEM.md and ARCHITECTURE_DECISIONS ADR-033.
+    "crispy_forms",
+    "crispy_bootstrap5",
 ]
+
+CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap5"
+CRISPY_TEMPLATE_PACK = "bootstrap5"
 
 # KUSANYA domain apps. Phase 1 ships the platform foundation only:
 # identity, tenancy, RBAC and audit. Billing/payments/ledger/etc. are

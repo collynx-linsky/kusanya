@@ -1,32 +1,29 @@
-{% extends "base.html" %}
+{% extends "base_auth.html" %}
 {% block title %}Sign in{% endblock %}
+{% block topbar_actions %}
+<a class="btn btn-sm btn-primary" href="{% url 'tenants:onboard' %}">Register institution</a>
+{% endblock %}
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-12 col-md-6 col-lg-4">
-        <div class="card shadow-sm">
-            <div class="card-body p-4">
-                <h1 class="h4 mb-3">Sign in</h1>
-                <form method="post">
-                    {% csrf_token %}
-                    {% if form.non_field_errors %}
-                        <div class="alert alert-danger">{{ form.non_field_errors }}</div>
-                    {% endif %}
-                    <div class="mb-3">
-                        <label class="form-label" for="{{ form.username.id_for_label }}">Email</label>
-                        {{ form.username }}
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label" for="{{ form.password.id_for_label }}">Password</label>
-                        {{ form.password }}
-                    </div>
-                    <button type="submit" class="btn btn-primary w-100">Sign in</button>
-                </form>
-                <hr>
-                <p class="small text-body-secondary mb-0">
-                    New institution? <a href="{% url 'tenants:onboard' %}">Register here</a>.
-                </p>
-            </div>
+<div class="kz-form-card mx-auto">
+    <h1 class="h4 mb-3">Sign in</h1>
+    <form method="post">
+        {% csrf_token %}
+        {% if form.non_field_errors %}
+            <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+        {% endif %}
+        <div class="mb-3">
+            <label class="form-label" for="{{ form.username.id_for_label }}">Email</label>
+            {{ form.username }}
         </div>
-    </div>
+        <div class="mb-3">
+            <label class="form-label" for="{{ form.password.id_for_label }}">Password</label>
+            {{ form.password }}
+        </div>
+        <button type="submit" class="btn btn-primary w-100">Sign in</button>
+    </form>
+    <hr>
+    <p class="small text-body-secondary mb-0">
+        New institution? <a href="{% url 'tenants:onboard' %}">Register here</a>.
+    </p>
 </div>
 {% endblock %}

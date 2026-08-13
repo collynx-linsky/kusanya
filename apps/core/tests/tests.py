@@ -230,3 +230,64 @@ class TestEncryptedFields:
         from apps.core.encrypted_fields import compute_lookup_hash
 
         assert compute_lookup_hash("  Amina Hassan  ") == compute_lookup_hash("Amina Hassan")
+
+
+class TestKusanyaUiTemplateTags:
+    """apps.core.templatetags.kusanya_ui — backs the design system's
+    active-nav-link, status-badge, and pagination/sort link conventions.
+    See docs/DESIGN_SYSTEM.md."""
+
+    def test_is_active_ns_matches_current_namespace(self):
+        from apps.core.templatetags.kusanya_ui import is_active_ns
+
+        class _Resolver:
+            app_name = "customers"
+
+        class _Request:
+            resolver_match = _Resolver()
+
+        assert is_active_ns({"request": _Request()}, "customers") == "active"
+        assert is_active_ns({"request": _Request()}, "billing") == ""
+        assert is_active_ns({"request": _Request()}, "billing", "customers") == "active"
+
+    def test_is_active_ns_is_safe_with_no_resolver_match(self):
+        from apps.core.templatetags.kusanya_ui import is_active_ns
+
+        class _Request:
+            resolver_match = None
+
+        assert is_active_ns({"request": _Request()}, "customers") == ""
+        assert is_active_ns({}, "customers") == ""
+
+    @pytest.mark.parametrize(
+        "status,expected",
+        [
+            ("active", "text-bg-success"),
+            ("SUCCESSFUL", "text-bg-success"),
+            ("pending", "text-bg-warning"),
+            ("failed", "text-bg-danger"),
+            ("refunded", "text-bg-info"),
+            ("some_unknown_status", "text-bg-secondary"),
+        ],
+    )
+    def test_status_badge_class_maps_known_vocabulary(self, status, expected):
+        from apps.core.templatetags.kusanya_ui import status_badge_class
+
+        assert status_badge_class(status) == expected
+
+    def test_querystring_with_preserves_other_params_and_overrides_given_ones(self, rf):
+        from apps.core.templatetags.kusanya_ui import querystring_with
+
+        request = rf.get("/customers/?q=amina&sort=-created_at")
+        result = querystring_with({"request": request}, page=2)
+        assert "q=amina" in result
+        assert "sort=-created_at" in result
+        assert "page=2" in result
+
+    def test_querystring_with_removes_a_key_when_set_to_none(self, rf):
+        from apps.core.templatetags.kusanya_ui import querystring_with
+
+        request = rf.get("/customers/?q=amina&page=3")
+        result = querystring_with({"request": request}, page=None)
+        assert "page" not in result
+        assert "q=amina" in result

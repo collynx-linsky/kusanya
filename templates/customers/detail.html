@@ -1,32 +1,71 @@
 {% extends "base.html" %}
 {% block title %}{{ customer.full_name }}{% endblock %}
+{% block breadcrumb %}
+<a href="{% url 'customers:list' %}">Customers</a>
+<i class="bi bi-chevron-right small"></i>
+<span class="text-body">{{ customer.full_name }}</span>
+{% endblock %}
 {% block content %}
-<h1 class="h3 mb-1">{{ customer.full_name }}</h1>
-<p class="text-body-secondary">
-    {{ customer.email|default:"No email" }} · {{ customer.phone_number|default:"No phone" }}
-</p>
-
-<div class="d-flex justify-content-between align-items-center mt-4 mb-2">
-    <h2 class="h5 mb-0">Accounts</h2>
-    <a href="{% url 'customers:account-create' customer.pk %}" class="btn btn-sm btn-primary">New account</a>
+<div class="kz-page-header">
+    <div>
+        <h1 class="kz-page-title">{{ customer.full_name }}</h1>
+        <p class="kz-page-subtitle">
+            {{ customer.email|default:"No email on file" }}
+            {% if customer.phone_number %} · {{ customer.phone_number }}{% endif %}
+            {% if not customer.is_active %} · <span class="badge text-bg-secondary">Inactive</span>{% endif %}
+        </p>
+    </div>
+    <a href="{% url 'customers:account-create' customer.pk %}" class="btn btn-primary">
+        <i class="bi bi-plus-lg"></i> New account
+    </a>
 </div>
 
-{% if accounts %}
-<div class="table-responsive">
-    <table class="table table-striped align-middle">
-        <thead><tr><th>Name</th><th>Revenue source</th><th>Bills</th></tr></thead>
-        <tbody>
-            {% for account in accounts %}
-            <tr>
-                <td>{{ account.name }}</td>
-                <td>{{ account.revenue_source|default:"—" }}</td>
-                <td>{{ account.bills.count }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+<div class="kz-card mb-4">
+    <div class="kz-card-header"><h2>Overview</h2></div>
+    <div class="kz-card-body">
+        <div class="row g-3">
+            <div class="col-6 col-md-3">
+                <div class="kz-stat-label">Email</div>
+                <div>{{ customer.email|default:"—" }}</div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="kz-stat-label">Phone</div>
+                <div>{{ customer.phone_number|default:"—" }}</div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="kz-stat-label">External reference</div>
+                <div>{{ customer.external_reference|default:"—" }}</div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="kz-stat-label">Customer since</div>
+                <div>{{ customer.created_at|date:"d M Y" }}</div>
+            </div>
+        </div>
+    </div>
 </div>
-{% else %}
-<p class="text-body-secondary">No accounts yet.</p>
-{% endif %}
+
+<div class="kz-table-wrap">
+    <div class="kz-table-toolbar">
+        <h2 class="h6 mb-0">Accounts</h2>
+    </div>
+    {% if accounts %}
+    <div class="table-responsive">
+        <table class="table kz-table mb-0">
+            <thead><tr><th>Name</th><th>Revenue source</th><th>Bills</th></tr></thead>
+            <tbody>
+                {% for account in accounts %}
+                <tr>
+                    <td>{{ account.name }}</td>
+                    <td>{{ account.revenue_source|default:"—" }}</td>
+                    <td>{{ account.bills.count }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    {% url 'customers:account-create' customer.pk as account_create_url %}
+    {% include "components/empty_state.html" with icon="bi-wallet2" title="No accounts yet" body="Create a billing relationship for this customer to start issuing bills." action_url=account_create_url action_label="New account" %}
+    {% endif %}
+</div>
 {% endblock %}

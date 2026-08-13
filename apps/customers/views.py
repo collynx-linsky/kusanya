@@ -1,7 +1,11 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.paginator import Paginator
+from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 
+from apps.core.encrypted_fields import compute_lookup_hash
 from apps.customers.forms import CustomerAccountForm, CustomerForm
 from apps.customers.models import Customer, CustomerAccount
 from apps.customers.services import get_or_create_customer, get_or_create_customer_account
@@ -10,13 +14,51 @@ from apps.tenants.permissions import require_tenant_role
 
 _CAN_MANAGE = (TenantRole.ADMIN, TenantRole.FINANCE_MANAGER, TenantRole.BILLING_OFFICER, TenantRole.ACCOUNTANT)
 
+# full_name/email/phone_number are encrypted at rest (ADR-032) — search
+# on them can only be exact-match via their lookup_hash companions, the
+# same constraint already applied to Django admin search
+# (apps.customers.admin.CustomerAdmin). external_reference is plain, so
+# it still supports a real substring match.
+_SORTABLE_FIELDS = {
+    "created_at": "created_at",
+    "-created_at": "-created_at",
+    "is_active": "is_active",
+    "-is_active": "-is_active",
+}
+
 
 @login_required
 def customer_list(request):
     if request.tenant is None:
         return render(request, "dashboard/no_access.html")
+
     customers = Customer.objects.filter(tenant=request.tenant).prefetch_related("accounts")
-    return render(request, "customers/list.html", {"customers": customers})
+
+    query = request.GET.get("q", "").strip()
+    if query:
+        customers = customers.filter(
+            Q(external_reference__icontains=query)
+            | Q(full_name_lookup_hash=compute_lookup_hash(query))
+            | Q(email_lookup_hash=compute_lookup_hash(query.lower()))
+            | Q(phone_number_lookup_hash=compute_lookup_hash(query))
+        )
+
+    sort = request.GET.get("sort", "-created_at")
+    customers = customers.order_by(_SORTABLE_FIELDS.get(sort, "-created_at"))
+
+    paginator = Paginator(customers, 25)
+    page_obj = paginator.get_page(request.GET.get("page"))
+
+    context = {
+        "page_obj": page_obj,
+        "customers": page_obj.object_list,
+        "query": query,
+        "sort": sort,
+        "customer_create_url": reverse("customers:create"),
+    }
+    if request.headers.get("HX-Request") and request.headers.get("HX-Target") == "kz-customer-table":
+        return render(request, "customers/_table.html", context)
+    return render(request, "customers/list.html", context)
 
 
 @login_required

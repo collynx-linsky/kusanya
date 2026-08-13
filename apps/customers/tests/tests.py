@@ -118,3 +118,87 @@ class TestCustomerFieldEncryption:
         assert found.count() == 1
         not_found = Customer.objects.filter(full_name_lookup_hash=compute_lookup_hash("Amina"))
         assert not_found.count() == 0
+
+
+@pytest.mark.django_db
+class TestCustomerListSearchAndPagination:
+    """apps.customers.views.customer_list — the P0 reference
+    implementation of the design system's table/search/pagination
+    pattern (docs/DESIGN_SYSTEM.md). Search on encrypted fields is
+    exact-match only, same constraint as the admin (ADR-032)."""
+
+    def _login(self, client, make_user, make_tenant, make_membership, tenant):
+        user = make_user(email="portal@example.com")
+        make_membership(user, tenant)
+        client.force_login(user)
+        session = client.session
+        session["active_tenant_id"] = str(tenant.id)
+        session.save()
+        return user
+
+    def test_exact_name_search_finds_the_customer(self, client, make_user, make_tenant, make_membership):
+        tenant = make_tenant()
+        self._login(client, make_user, make_tenant, make_membership, tenant)
+        Customer.objects.create(tenant=tenant, full_name="Amina Juma")
+        Customer.objects.create(tenant=tenant, full_name="Bahati Msigwa")
+
+        response = client.get("/customers/", {"q": "Amina Juma"})
+
+        assert response.status_code == 200
+        assert b"Amina Juma" in response.content
+        assert b"Bahati Msigwa" not in response.content
+
+    def test_partial_name_search_finds_nothing(self, client, make_user, make_tenant, make_membership):
+        tenant = make_tenant()
+        self._login(client, make_user, make_tenant, make_membership, tenant)
+        Customer.objects.create(tenant=tenant, full_name="Amina Juma")
+
+        response = client.get("/customers/", {"q": "Amina"})
+
+        assert response.status_code == 200
+        assert b"Amina Juma" not in response.content
+        assert b"No exact match" in response.content
+
+    def test_search_by_external_reference_still_supports_substring_match(
+        self, client, make_user, make_tenant, make_membership
+    ):
+        """external_reference is NOT encrypted, so unlike name/email/phone
+        it keeps real substring search."""
+        tenant = make_tenant()
+        self._login(client, make_user, make_tenant, make_membership, tenant)
+        Customer.objects.create(tenant=tenant, full_name="Amina Juma", external_reference="ERP-CUST-00042")
+
+        response = client.get("/customers/", {"q": "CUST-000"})
+
+        assert response.status_code == 200
+        assert b"Amina Juma" in response.content
+
+    def test_htmx_request_targeting_the_table_returns_only_the_partial(
+        self, client, make_user, make_tenant, make_membership
+    ):
+        tenant = make_tenant()
+        self._login(client, make_user, make_tenant, make_membership, tenant)
+        Customer.objects.create(tenant=tenant, full_name="Amina Juma")
+
+        response = client.get(
+            "/customers/", {"q": "Amina Juma"}, HTTP_HX_REQUEST="true", HTTP_HX_TARGET="kz-customer-table"
+        )
+
+        assert response.status_code == 200
+        assert b"kz-sidebar" not in response.content  # shell not re-sent on a partial swap
+        assert b"Amina Juma" in response.content
+
+    def test_pagination_splits_results_across_pages(self, client, make_user, make_tenant, make_membership):
+        tenant = make_tenant()
+        self._login(client, make_user, make_tenant, make_membership, tenant)
+        for i in range(30):
+            Customer.objects.create(tenant=tenant, full_name=f"Customer {i:02d}")
+
+        page_one = client.get("/customers/")
+        page_two = client.get("/customers/", {"page": 2})
+
+        assert page_one.status_code == 200
+        assert page_two.status_code == 200
+        assert page_one.context["page_obj"].paginator.count == 30
+        assert page_one.context["page_obj"].paginator.num_pages == 2
+        assert len(page_two.context["page_obj"].object_list) == 5

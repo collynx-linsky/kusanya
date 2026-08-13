@@ -1030,3 +1030,78 @@ real outage of that data). Losing `FIELD_ENCRYPTION_KEY` outright means
 that data is permanently unrecoverable — this is the correct behavior
 for encryption at rest, but is worth stating plainly: back up the key
 with at least the same care as the database itself.
+
+## ADR-033: Enterprise UX rework stays Django Templates + Bootstrap 5 + HTMX — a design system and app shell, not a framework swap
+
+**Decision:** The user explicitly required "do not replace Django
+Templates + Bootstrap 5 + HTMX with React/Next.js" for a 32-item,
+4-tier enterprise-UX request (P0 Foundation through P3 Quality). P0
+(Foundation) is built as: a token-based design system
+(`static/css/design-tokens.css`), a persistent sidebar + top-bar app
+shell (`templates/base.html`, `partials/sidebar.html`, `partials/topbar.html`,
+a separate `base_auth.html` for pre-login pages), reusable
+components as CSS classes + a handful of `{% include %}` partials
+(`templates/components/`), an HTMX convention layer (CSRF injection,
+global loading indicator, toast events — `static/js/kusanya.js`),
+`django-crispy-forms`/`crispy-bootstrap5` for consistent form markup,
+and a search/sort/pagination table convention — each piece fully built
+out and live-verified on the Customers app as the reference
+implementation (`docs/DESIGN_SYSTEM.md` has the full breakdown and, per
+that doc's own "Migration status" section, an honest account of which
+of the ~40 other templates still run the old markup, unmigrated but not
+broken, pending the same mechanical treatment).
+
+**Reason:** Bootstrap 5.3's CSS custom-property theming system
+(`--bs-*`) and HTMX's out-of-band/partial-swap model already provide
+most of what a component framework buys — consistent theming and
+partial-page interactivity — without a build step, a second runtime, or
+abandoning server-side rendering. `django-crispy-forms` is the one new
+dependency added, deliberately: it is the standard, actively-maintained
+answer to "consistent Bootstrap form markup from a Django Form" for
+exactly this stack, not a framework-shaped choice.
+
+**Reason (P0 scope, not the full 32 items):** the request's own
+structure (P0/P1/P2/P3 tiers) already implies staged delivery — P0 is
+foundational and everything else depends on it, so it was built first
+and completely, rather than spreading partial effort across all 32
+items. Two items were pulled forward opportunistically because they
+were low-risk and naturally paired with work already in progress: the
+tenant dashboard got the new `stat_card` component (trivial, same data,
+better visual consistency), and a stale "not yet implemented: receipts,
+notifications, the API" notice on that same dashboard was corrected
+(all three shipped in earlier phases of this project) while the
+template was already open for editing.
+
+**A real bug this surfaced, not just a UI change:** `templates/base.html`
+originally branched `{% if user.is_authenticated %}` inside *one* file
+with two copies of `{% block content %}{% endblock %}` — Django
+template blocks cannot repeat within a single file, even in mutually
+exclusive branches, and this broke literally every page
+(`TemplateSyntaxError`) until split into `base.html` (always-shell) and
+`base_auth.html` (minimal, for login/MFA-verify/onboarding). Separately,
+a component partial's "usage example" written inside a `{# ... #}`
+single-line comment was not actually inert — confirmed directly against
+`django.template.Template` that a `{% include %}`-shaped example text
+inside `{# #}` gets tokenized and executed rather than ignored, which
+in `components/empty_state.html`'s case (whose own example included
+itself) caused genuine infinite recursion (`RecursionError`) the moment
+that component's empty-state branch rendered. Fixed by using `{% comment %}...{% endcomment %}`
+for any doc-comment that itself contains template tag syntax — verified
+safe with the same direct-`Template()` test before trusting it. Both
+are documented in `docs/DESIGN_SYSTEM.md` so neither gets rediscovered
+migrating the remaining ~40 templates.
+
+**Consequences:** Every existing page keeps working and inherits the
+new shell/tokens automatically (nothing needed touching `base.html`'s
+consumers to pick up sidebar/top-bar/color changes) — but only the
+Customers app has the newer search/pagination/crispy-forms conventions
+applied. Global `hx-boost` (SPA-like navigation with a persistent shell
+via `hx-select`) was deliberately not turned on in P0 — it needs real
+browser verification to confirm it doesn't desync the sidebar's
+active-link highlighting after a boosted navigation, which this
+environment can't do; shipping it unverified was judged worse than not
+shipping it yet. 207/207 automated tests passing, Bandit clean,
+live-verified end-to-end over real HTTP against the running dev server
+(every major section's URL, the crispy-rendered customer form, and the
+HTMX exact-match search/empty-state/pagination behavior on the
+Customers reference implementation).

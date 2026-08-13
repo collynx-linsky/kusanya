@@ -1,89 +1,58 @@
 {% extends "base.html" %}
 {% block title %}{{ tenant.name }} dashboard{% endblock %}
+{% block breadcrumb %}<span class="text-body">Dashboard</span>{% endblock %}
 {% block content %}
-<h1 class="h3 mb-1">{{ tenant.name }}</h1>
-<p class="text-body-secondary">
-    Sector: {{ tenant.get_sector_display }} ·
-    Status: <span class="badge {% if tenant.status == 'active' %}text-bg-success{% elif tenant.status == 'pending' %}text-bg-warning{% else %}text-bg-secondary{% endif %}">{{ tenant.get_status_display }}</span>
-</p>
+<div class="kz-page-header">
+    <div>
+        <h1 class="kz-page-title">{{ tenant.name }}</h1>
+        <p class="kz-page-subtitle">
+            {{ tenant.get_sector_display }} ·
+            <span class="badge {% if tenant.status == 'active' %}text-bg-success{% elif tenant.status == 'pending' %}text-bg-warning{% else %}text-bg-secondary{% endif %}">{{ tenant.get_status_display }}</span>
+        </p>
+    </div>
+</div>
 
 {% if open_exception_count %}
-<div class="alert alert-warning">
-    <strong>{{ open_exception_count }} open reconciliation exception(s)</strong> —
-    <a href="{% url 'reconciliation:list' %}">review them</a>.
+<div class="alert alert-warning d-flex align-items-center gap-2">
+    <i class="bi bi-exclamation-triangle-fill"></i>
+    <div><strong>{{ open_exception_count }} open reconciliation exception(s)</strong> — <a href="{% url 'reconciliation:list' %}">review them</a>.</div>
 </div>
 {% endif %}
 
-<h2 class="h6 text-uppercase text-body-secondary mt-4">Collections</h2>
+<h2 class="kz-nav-section-label px-0 mt-4 mb-2">Collections</h2>
 <div class="row g-3">
     <div class="col-6 col-lg-3">
-        <div class="card shadow-sm h-100">
-            <div class="card-body">
-                <div class="text-body-secondary small text-uppercase">Gross collected</div>
-                <div class="display-6">{{ gross_collected }}</div>
-            </div>
-        </div>
+        {% include "components/stat_card.html" with label="Gross collected" value=gross_collected %}
     </div>
     <div class="col-6 col-lg-3">
-        <a href="{% url 'revenue:summary' %}" class="text-decoration-none text-body">
-        <div class="card shadow-sm h-100">
-            <div class="card-body">
-                <div class="text-body-secondary small text-uppercase">Platform fees paid</div>
-                <div class="display-6">{{ platform_fees_paid }}</div>
-            </div>
-        </div>
-        </a>
+        {% url 'revenue:summary' as revenue_url %}
+        {% include "components/stat_card.html" with label="Platform fees paid" value=platform_fees_paid href=revenue_url %}
     </div>
 </div>
 
-<h2 class="h6 text-uppercase text-body-secondary mt-4">Records</h2>
+<h2 class="kz-nav-section-label px-0 mt-4 mb-2">Records</h2>
 <div class="row g-3">
     <div class="col-6 col-lg-3">
-        <div class="card shadow-sm h-100">
-            <div class="card-body">
-                <div class="text-body-secondary small text-uppercase">Team members</div>
-                <div class="display-6">{{ member_count }}</div>
-            </div>
-        </div>
+        {% include "components/stat_card.html" with label="Team members" value=member_count %}
     </div>
     <div class="col-6 col-lg-3">
-        <a href="{% url 'customers:list' %}" class="text-decoration-none text-body">
-        <div class="card shadow-sm h-100">
-            <div class="card-body">
-                <div class="text-body-secondary small text-uppercase">Customers</div>
-                <div class="display-6">{{ customer_count }}</div>
-            </div>
-        </div>
-        </a>
+        {% url 'customers:list' as customers_url %}
+        {% include "components/stat_card.html" with label="Customers" value=customer_count href=customers_url %}
     </div>
     <div class="col-6 col-lg-3">
-        <a href="{% url 'billing:list' %}" class="text-decoration-none text-body">
-        <div class="card shadow-sm h-100">
-            <div class="card-body">
-                <div class="text-body-secondary small text-uppercase">Bills</div>
-                <div class="display-6">{{ bill_count }}</div>
-            </div>
-        </div>
-        </a>
+        {% url 'billing:list' as bills_url %}
+        {% include "components/stat_card.html" with label="Bills" value=bill_count href=bills_url %}
     </div>
     <div class="col-6 col-lg-3">
-        <a href="{% url 'control_numbers:list' %}" class="text-decoration-none text-body">
-        <div class="card shadow-sm h-100">
-            <div class="card-body">
-                <div class="text-body-secondary small text-uppercase">Control numbers</div>
-                <div class="display-6">{{ control_number_count }}</div>
-            </div>
-        </div>
-        </a>
+        {% url 'control_numbers:list' as control_numbers_url %}
+        {% include "components/stat_card.html" with label="Control numbers" value=control_number_count href=control_numbers_url %}
     </div>
 </div>
 
 <div class="alert alert-secondary mt-4">
-    <strong>Not yet implemented:</strong> receipts and notifications
-    (Phase 5), and the external API for ERP integrations (Phase 6).
-    Billing, payments, the ledger, revenue, reconciliation, and
-    settlement are all fully functional — against the MOCK/SANDBOX
-    provider only. See docs/PRODUCT_REQUIREMENTS.md for the phased
-    roadmap.
+    <i class="bi bi-info-circle"></i>
+    Payments run against the MOCK/SANDBOX provider only — see
+    <code>docs/PAYMENT_PROVIDER_ARCHITECTURE.md</code> for the roadmap
+    toward a licensed provider.
 </div>
 {% endblock %}

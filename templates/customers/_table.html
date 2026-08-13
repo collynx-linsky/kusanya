@@ -1,0 +1,65 @@
+{% load kusanya_ui %}
+<div class="kz-table-wrap" id="kz-customer-table">
+    <div class="kz-table-toolbar">
+        <form class="d-flex" role="search"
+              hx-get="{% url 'customers:list' %}"
+              hx-target="#kz-customer-table"
+              hx-select="#kz-customer-table"
+              hx-swap="outerHTML"
+              hx-trigger="keyup changed delay:400ms from:#kz-customer-search, search from:#kz-customer-search"
+              hx-push-url="true"
+              hx-indicator="#kz-customer-search-indicator">
+            <div class="input-group input-group-sm kz-search-input">
+                <span class="input-group-text bg-transparent border-end-0"><i class="bi bi-search"></i></span>
+                <input type="search" id="kz-customer-search" name="q" value="{{ query }}"
+                       class="form-control border-start-0" placeholder="Search by exact name, email, or phone…"
+                       aria-label="Search customers">
+                <span class="input-group-text bg-transparent border-start-0 htmx-indicator" id="kz-customer-search-indicator">
+                    <span class="spinner-border spinner-border-sm text-secondary" role="status"></span>
+                </span>
+            </div>
+        </form>
+        <div class="kz-table-toolbar-filters">
+            {% if query %}
+            <span class="badge text-bg-light border">{{ page_obj.paginator.count }} result{{ page_obj.paginator.count|pluralize }}</span>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if page_obj.object_list %}
+    <div class="table-responsive">
+        <table class="table kz-table mb-0">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Phone</th>
+                    <th>Accounts</th>
+                    <th>
+                        <a href="{% querystring_with sort=sort|yesno:'created_at,-created_at' %}">
+                            Created
+                            {% if sort == "-created_at" %}<i class="bi bi-caret-down-fill"></i>{% elif sort == "created_at" %}<i class="bi bi-caret-up-fill"></i>{% endif %}
+                        </a>
+                    </th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for customer in page_obj.object_list %}
+                <tr>
+                    <td><a href="{% url 'customers:detail' customer.pk %}">{{ customer.full_name }}</a></td>
+                    <td>{{ customer.email|default:"—" }}</td>
+                    <td>{{ customer.phone_number|default:"—" }}</td>
+                    <td>{{ customer.accounts.count }}</td>
+                    <td class="text-body-secondary">{{ customer.created_at|date:"d M Y" }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% include "components/pagination.html" with page_obj=page_obj %}
+    {% elif query %}
+    {% include "components/empty_state.html" with icon="bi-search" title="No exact match" body="Search matches the complete name, email, or phone number only — not a partial match. Double-check spelling, or try the external reference instead." %}
+    {% else %}
+    {% include "components/empty_state.html" with icon="bi-people" title="No customers yet" body="Customers appear here once you add one, or add one through your ERP integration." action_url=customer_create_url action_label="New customer" %}
+    {% endif %}
+</div>

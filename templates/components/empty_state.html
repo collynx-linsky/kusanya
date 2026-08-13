@@ -1,0 +1,15 @@
+{% comment %}
+Usage:
+{% include "components/empty_state.html" with icon="bi-people" title="No customers yet" body="Customers appear here once you add one, or one pays a bill for the first time." action_url=... action_label="New customer" %}
+`action_url`/`action_label` are optional — omit both for a plain message.
+{% endcomment %}
+<div class="kz-empty-state">
+    <div class="kz-empty-state-icon"><i class="bi {{ icon|default:"bi-inbox" }}"></i></div>
+    <div class="kz-empty-state-title">{{ title }}</div>
+    {% if body %}<div class="kz-empty-state-body">{{ body }}</div>{% endif %}
+    {% if action_url %}
+    <div class="mt-3">
+        <a href="{{ action_url }}" class="btn btn-primary btn-sm">{{ action_label|default:"Get started" }}</a>
+    </div>
+    {% endif %}
+</div>

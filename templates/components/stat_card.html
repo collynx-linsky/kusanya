@@ -1,0 +1,11 @@
+{% comment %}
+Usage:
+{% include "components/stat_card.html" with label="Gross collected" value=gross_collected %}
+{% include "components/stat_card.html" with label="Customers" value=customer_count href=customers_url meta="+12 this month" %}
+`href` and `meta` are optional.
+{% endcomment %}
+{% if href %}<a class="kz-stat-card" href="{{ href }}">{% else %}<div class="kz-stat-card">{% endif %}
+    <span class="kz-stat-label">{{ label }}</span>
+    <span class="kz-stat-value">{{ value }}</span>
+    {% if meta %}<span class="kz-stat-meta">{{ meta }}</span>{% endif %}
+{% if href %}</a>{% else %}</div>{% endif %}

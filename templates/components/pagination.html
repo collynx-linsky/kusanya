@@ -1,0 +1,32 @@
+{% load kusanya_ui %}
+{% comment %}
+Usage: {% include "components/pagination.html" with page_obj=page_obj %}
+Preserves every other query-string param (search, sort, filters) via
+querystring_with — a page link never clobbers an active search/filter.
+{% endcomment %}
+{% if page_obj.paginator.num_pages > 1 %}
+<div class="kz-table-pagination">
+    <span>
+        Showing {{ page_obj.start_index }}–{{ page_obj.end_index }} of {{ page_obj.paginator.count }}
+    </span>
+    <nav aria-label="Pagination">
+        <ul class="pagination pagination-sm mb-0">
+            <li class="page-item {% if not page_obj.has_previous %}disabled{% endif %}">
+                <a class="page-link" href="{% if page_obj.has_previous %}{% querystring_with page=page_obj.previous_page_number %}{% else %}#{% endif %}">Previous</a>
+            </li>
+            {% for page_number in page_obj.paginator.page_range %}
+                {% if page_number == page_obj.number %}
+                <li class="page-item active"><span class="page-link">{{ page_number }}</span></li>
+                {% elif page_number == 1 or page_number == page_obj.paginator.num_pages or page_number|add:"-1" == page_obj.number or page_number|add:"1" == page_obj.number %}
+                <li class="page-item"><a class="page-link" href="{% querystring_with page=page_number %}">{{ page_number }}</a></li>
+                {% elif page_number == 2 or page_number == page_obj.paginator.num_pages|add:"-1" %}
+                <li class="page-item disabled"><span class="page-link">…</span></li>
+                {% endif %}
+            {% endfor %}
+            <li class="page-item {% if not page_obj.has_next %}disabled{% endif %}">
+                <a class="page-link" href="{% if page_obj.has_next %}{% querystring_with page=page_obj.next_page_number %}{% else %}#{% endif %}">Next</a>
+            </li>
+        </ul>
+    </nav>
+</div>
+{% endif %}

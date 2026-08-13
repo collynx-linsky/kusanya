@@ -1,0 +1,125 @@
+{% load kusanya_ui %}
+<div class="kz-sidebar-backdrop" id="kzSidebarBackdrop"></div>
+<aside class="kz-sidebar" id="kzSidebar">
+    <a class="kz-sidebar-brand" href="{% url 'core:home' %}">
+        <i class="bi bi-grid-1x2-fill"></i>
+        {{ KUSANYA_BRAND_NAME }}
+        <span class="badge text-bg-secondary fw-normal ms-auto" style="font-size: 0.625rem;">Beta</span>
+    </a>
+
+    <nav class="kz-sidebar-nav">
+        {% if user.is_authenticated %}
+            <div class="kz-nav-section">
+                <a class="kz-nav-link {% is_active_ns 'core' %}" href="{% url 'core:dashboard-router' %}">
+                    <span class="kz-nav-icon"><i class="bi bi-speedometer2"></i></span>
+                    Dashboard
+                </a>
+            </div>
+
+            {% if current_tenant %}
+            <div class="kz-nav-section">
+                <div class="kz-nav-section-label">Collections</div>
+                <a class="kz-nav-link {% is_active_ns 'customers' %}" href="{% url 'customers:list' %}">
+                    <span class="kz-nav-icon"><i class="bi bi-people"></i></span>
+                    Customers
+                </a>
+                <a class="kz-nav-link {% is_active_ns 'billing' %}" href="{% url 'billing:list' %}">
+                    <span class="kz-nav-icon"><i class="bi bi-receipt"></i></span>
+                    Bills
+                </a>
+                <a class="kz-nav-link {% is_active_ns 'control_numbers' %}" href="{% url 'control_numbers:list' %}">
+                    <span class="kz-nav-icon"><i class="bi bi-hash"></i></span>
+                    Control numbers
+                </a>
+                <a class="kz-nav-link {% is_active_ns 'payments' %}" href="{% url 'payments:list' %}">
+                    <span class="kz-nav-icon"><i class="bi bi-credit-card"></i></span>
+                    Payments
+                </a>
+            </div>
+
+            <div class="kz-nav-section">
+                <div class="kz-nav-section-label">Finance</div>
+                <a class="kz-nav-link {% is_active_ns 'ledger' %}" href="{% url 'ledger:list' %}">
+                    <span class="kz-nav-icon"><i class="bi bi-journal-text"></i></span>
+                    Ledger
+                </a>
+                <a class="kz-nav-link {% is_active_ns 'revenue' %}" href="{% url 'revenue:summary' %}">
+                    <span class="kz-nav-icon"><i class="bi bi-graph-up"></i></span>
+                    Revenue
+                </a>
+                <a class="kz-nav-link {% is_active_ns 'reconciliation' %}" href="{% url 'reconciliation:list' %}">
+                    <span class="kz-nav-icon"><i class="bi bi-check2-square"></i></span>
+                    Reconciliation
+                </a>
+                <a class="kz-nav-link {% is_active_ns 'settlement' %}" href="{% url 'settlement:list' %}">
+                    <span class="kz-nav-icon"><i class="bi bi-bank"></i></span>
+                    Settlements
+                </a>
+            </div>
+
+            <div class="kz-nav-section">
+                <div class="kz-nav-section-label">Operations</div>
+                <a class="kz-nav-link {% is_active_ns 'webhooks' %}" href="{% url 'webhooks:list' %}">
+                    <span class="kz-nav-icon"><i class="bi bi-broadcast"></i></span>
+                    Webhooks
+                </a>
+                <a class="kz-nav-link {% is_active_ns 'notifications' %}" href="{% url 'notifications:list' %}">
+                    <span class="kz-nav-icon"><i class="bi bi-bell"></i></span>
+                    Notifications
+                </a>
+                <a class="kz-nav-link {% is_active_ns 'receipts' %}" href="{% url 'receipts:list' %}">
+                    <span class="kz-nav-icon"><i class="bi bi-file-earmark-text"></i></span>
+                    Receipts
+                </a>
+                <a class="kz-nav-link {% is_active_ns 'reports' %}" href="{% url 'reports:index' %}">
+                    <span class="kz-nav-icon"><i class="bi bi-bar-chart"></i></span>
+                    Reports
+                </a>
+            </div>
+
+            <div class="kz-nav-section">
+                <div class="kz-nav-section-label">Developer</div>
+                <a class="kz-nav-link {% is_active_ns 'api_credentials' %}" href="{% url 'api_credentials:list' %}">
+                    <span class="kz-nav-icon"><i class="bi bi-key"></i></span>
+                    API credentials
+                </a>
+                <a class="kz-nav-link" href="{% url 'api:docs' %}" target="_blank">
+                    <span class="kz-nav-icon"><i class="bi bi-box-arrow-up-right"></i></span>
+                    API documentation
+                </a>
+            </div>
+            {% endif %}
+
+            {% if user.is_staff %}
+            <div class="kz-nav-section">
+                <div class="kz-nav-section-label">Platform admin</div>
+                <a class="kz-nav-link" href="{% url 'tenants:pending-tenants' %}">
+                    <span class="kz-nav-icon"><i class="bi bi-building-add"></i></span>
+                    Pending institutions
+                </a>
+                <a class="kz-nav-link" href="{% url 'revenue:platform-dashboard' %}">
+                    <span class="kz-nav-icon"><i class="bi bi-cash-stack"></i></span>
+                    Platform revenue
+                </a>
+                <a class="kz-nav-link" href="{% url 'settlement:platform-list' %}">
+                    <span class="kz-nav-icon"><i class="bi bi-bank2"></i></span>
+                    Settlements
+                </a>
+                <a class="kz-nav-link" href="/admin/">
+                    <span class="kz-nav-icon"><i class="bi bi-shield-lock"></i></span>
+                    Django admin
+                </a>
+            </div>
+            {% endif %}
+        {% endif %}
+    </nav>
+
+    {% if user.is_authenticated %}
+    <div class="kz-sidebar-footer">
+        <a class="kz-nav-link" href="{% url 'accounts:mfa-status' %}" title="Security settings">
+            <span class="kz-avatar">{{ user.email|slice:":1"|upper }}</span>
+            <span class="text-truncate">{{ user.email }}</span>
+        </a>
+    </div>
+    {% endif %}
+</aside>
