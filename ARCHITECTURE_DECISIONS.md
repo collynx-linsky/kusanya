@@ -786,3 +786,33 @@ plaintext from live requests, or forge sessions directly). Rotating
 same as it already invalidates all sessions and signed tokens today —
 an accepted, pre-existing tradeoff of using `SECRET_KEY` for signing
 throughout this codebase, not a new one introduced here.
+
+## ADR-028: MFA setup renders a real scannable QR code (supersedes ADR-025)
+
+**Decision:** `apps.accounts.totp.build_otpauth_qr_svg()` renders the
+`otpauth://` setup URI as an inline SVG QR code (via the `qrcode`
+package's `SvgPathImage` factory — pure Python, no Pillow/image-library
+dependency), displayed on the MFA setup page. The 32-character secret and
+raw setup URI are still shown, collapsed behind a "can't scan a QR code?"
+disclosure, as a fallback for apps/situations that need manual entry.
+
+**Reason:** ADR-025 deferred this, betting that manual secret entry was
+good enough and that a QR image was "a UX nicety, not a correctness
+requirement," worth adding "if user feedback says the manual-entry
+friction matters in practice." It came up immediately in real use: a live
+account was set up with no way to scan the secret into an actual
+authenticator app, so every login afterward required asking for a code
+relayed by hand — a losing race against the 30-second TOTP period (see
+the login attempts that triggered the lockout ADR-027's throttle is
+designed to apply), and error-prone for backup codes too. `qrcode`'s SVG
+output specifically avoids reopening the Pillow-dependency question
+ADR-025 raised — it needed no new system dependency, just one pure-Python
+package.
+
+**Consequences:** One new dependency (`qrcode>=8.0`, `requirements/base.txt`).
+The rendered SVG is built entirely server-side from data KUSANYA itself
+generated (the device secret, the account's own email) — no user input
+flows into it, so it's rendered with `|safe` without reopening an XSS
+question. Manual entry remains available (now behind a disclosure,
+de-emphasized rather than removed) for authenticator apps or situations
+that can't scan a camera.

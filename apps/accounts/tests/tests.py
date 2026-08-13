@@ -4,7 +4,7 @@ import pytest
 
 from apps.accounts.models import BackupCode, MFADevice
 from apps.accounts.throttle import is_locked_out, record_failure, reset
-from apps.accounts.totp import build_otpauth_uri, generate_secret, generate_totp, verify_totp
+from apps.accounts.totp import build_otpauth_qr_svg, build_otpauth_uri, generate_secret, generate_totp, verify_totp
 
 
 class TestTotpAlgorithm:
@@ -58,6 +58,13 @@ class TestTotpAlgorithm:
         assert uri.startswith("otpauth://totp/")
         assert secret in uri
         assert "KUSANYA" in uri
+
+    def test_qr_svg_is_well_formed_svg_markup(self):
+        secret = generate_secret()
+        uri = build_otpauth_uri(secret_b32=secret, account_name="amina@example.com")
+        svg = build_otpauth_qr_svg(uri)
+        assert "<svg" in svg
+        assert "</svg>" in svg
 
 
 @pytest.mark.django_db
@@ -118,6 +125,17 @@ class TestMfaLifecycle:
 
         assert not MFADevice.objects.filter(user=user).exists()
         assert not BackupCode.objects.filter(user=user).exists()
+
+    def test_setup_page_renders_a_scannable_qr_code(self, client, make_user):
+        user = make_user(email="qrsetup@example.com", password="Str0ngPassw0rd!")
+        client.force_login(user)
+
+        response = client.get("/accounts/mfa/setup/")
+
+        assert response.status_code == 200
+        content = response.content.decode()
+        assert "<svg" in content
+        assert "</svg>" in content
 
 
 @pytest.mark.django_db

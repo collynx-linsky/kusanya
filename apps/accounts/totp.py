@@ -11,10 +11,14 @@ all implement exactly this RFC.
 import base64
 import hashlib
 import hmac
+import io
 import os
 import struct
 import time
 import urllib.parse
+
+import qrcode
+import qrcode.image.svg
 
 DIGITS = 6
 PERIOD_SECONDS = 30
@@ -59,13 +63,30 @@ def verify_totp(secret_b32: str, code: str, *, valid_window: int = VALID_WINDOW)
 
 
 def build_otpauth_uri(*, secret_b32: str, account_name: str, issuer: str = "KUSANYA") -> str:
-    """`otpauth://` URI an authenticator app can import directly (via QR
-    code or, since Phase 7 doesn't generate a QR image — see
-    ARCHITECTURE_DECISIONS ADR-025 — via manual "enter a setup URI" if the
-    app supports it; the raw secret is always shown too, for apps that
-    only support manual entry)."""
+    """`otpauth://` URI an authenticator app can import directly — by
+    scanning the QR code rendered from this URI (see
+    build_otpauth_qr_svg below; ARCHITECTURE_DECISIONS ADR-028
+    supersedes ADR-025's original "text only" decision) or by manual
+    "enter a setup URI" for apps that support that instead. The raw
+    secret is always shown too, for apps that only support typing a key
+    in by hand."""
     label = urllib.parse.quote(f"{issuer}:{account_name}")
     params = urllib.parse.urlencode(
         {"secret": secret_b32, "issuer": issuer, "algorithm": "SHA1", "digits": DIGITS, "period": PERIOD_SECONDS}
     )
     return f"otpauth://totp/{label}?{params}"
+
+
+def build_otpauth_qr_svg(otpauth_uri: str) -> str:
+    """Renders the setup URI as an inline SVG QR code — scannable
+    directly by any authenticator app's camera import, so setup doesn't
+    require manually typing/copying a 32-character secret. SVG (not PNG)
+    specifically so this needs no Pillow/image-library dependency —
+    `qrcode`'s SvgPathImage factory is pure Python. Returns raw `<svg
+    ...>...</svg>` markup, safe to render directly (no user input flows
+    into this — it's built entirely from a secret KUSANYA generated and
+    the account's own email)."""
+    img = qrcode.make(otpauth_uri, image_factory=qrcode.image.svg.SvgPathImage)
+    buf = io.BytesIO()
+    img.save(buf)
+    return buf.getvalue().decode("utf-8")

@@ -45,13 +45,15 @@ overstating any of these would be its own security problem.
 
 ## Implemented (Phase 7)
 
-- **Multi-factor authentication** — TOTP (RFC 6238), hand-implemented with
-  no external dependency (`apps.accounts.totp`), 6-digit codes, 30-second
-  period, ±1 period drift window. A user with a confirmed `MFADevice` is
-  intercepted after a correct password and is not granted a session until
-  they also supply a valid code (`apps.accounts.views.mfa_verify`) — see
-  ADR-025 for why setup shows the secret/`otpauth://` URI as text rather
-  than a rendered QR image.
+- **Multi-factor authentication** — TOTP (RFC 6238), hand-implemented
+  algorithm with no external dependency (`apps.accounts.totp`), 6-digit
+  codes, 30-second period, ±1 period drift window. A user with a
+  confirmed `MFADevice` is intercepted after a correct password and is
+  not granted a session until they also supply a valid code
+  (`apps.accounts.views.mfa_verify`). Setup renders a real scannable QR
+  code (`qrcode` package, SVG output, no Pillow dependency), with the raw
+  secret/`otpauth://` URI available as a manual-entry fallback — see
+  ADR-028 (supersedes ADR-025, which originally deferred the QR image).
 - **Backup/recovery codes** — 10 single-use codes issued once MFA is
   confirmed, shown exactly once. Stored as a keyed HMAC-SHA256 lookup hash
   (`apps.accounts.models._backup_code_lookup_hash`), not PBKDF2 — see

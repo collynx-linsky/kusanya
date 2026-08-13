@@ -7,7 +7,7 @@ from django.shortcuts import redirect, render
 
 from apps.accounts.mfa_services import confirm_device, disable_mfa, generate_backup_codes
 from apps.accounts.models import MFADevice
-from apps.accounts.totp import build_otpauth_uri
+from apps.accounts.totp import build_otpauth_qr_svg, build_otpauth_uri
 
 
 @login_required
@@ -37,7 +37,11 @@ def mfa_setup(request):
         messages.error(request, "That code didn't verify — check your authenticator app and try again.")
 
     otpauth_uri = build_otpauth_uri(secret_b32=device.secret, account_name=request.user.email)
-    return render(request, "accounts/mfa_setup.html", {"device": device, "otpauth_uri": otpauth_uri})
+    qr_svg = build_otpauth_qr_svg(otpauth_uri)
+    return render(
+        request, "accounts/mfa_setup.html",
+        {"device": device, "otpauth_uri": otpauth_uri, "qr_svg": qr_svg},
+    )
 
 
 @login_required
