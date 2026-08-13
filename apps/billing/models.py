@@ -13,6 +13,7 @@ from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils import timezone
 
+from apps.core.encrypted_fields import EncryptedTextField
 from apps.core.models import TenantScopedModel
 from apps.core.money import money_field_kwargs
 
@@ -93,7 +94,9 @@ class Bill(TenantScopedModel):
     external_reference = models.CharField(max_length=100, blank=True)
 
     metadata = models.JSONField(default=dict, blank=True)
-    notes = models.TextField(blank=True)
+    # Encrypted at rest (ARCHITECTURE_DECISIONS ADR-032) — free text,
+    # never externally serialized, no lookup_hash companion needed.
+    notes = EncryptedTextField(blank=True)
 
     class Meta:
         ordering = ["-created_at"]

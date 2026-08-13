@@ -8,13 +8,16 @@ tenant's sector. Nothing here assumes any particular sector.
 
 from django.db import models
 
+from apps.core.encrypted_fields import EncryptedCharField
 from apps.core.models import TenantScopedModel
 
 
 class Branch(TenantScopedModel):
     name = models.CharField(max_length=200)
     code = models.CharField(max_length=32, blank=True)
-    address = models.CharField(max_length=255, blank=True)
+    # Encrypted at rest (ARCHITECTURE_DECISIONS ADR-032) — not searched
+    # anywhere, no lookup_hash companion needed.
+    address = EncryptedCharField(max_length=255, blank=True)
     is_active = models.BooleanField(default=True)
 
     class Meta:

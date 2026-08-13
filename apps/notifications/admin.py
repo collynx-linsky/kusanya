@@ -1,5 +1,6 @@
 from django.contrib import admin
 
+from apps.core.encrypted_fields import EncryptedFieldSearchAdminMixin
 from apps.notifications.models import Notification, NotificationTemplate
 
 
@@ -12,12 +13,15 @@ class NotificationTemplateAdmin(admin.ModelAdmin):
 
 
 @admin.register(Notification)
-class NotificationAdmin(admin.ModelAdmin):
-    """Read-only — a notification is a delivery record, not editable data."""
+class NotificationAdmin(EncryptedFieldSearchAdminMixin, admin.ModelAdmin):
+    """Read-only — a notification is a delivery record, not editable data.
+    recipient is encrypted at rest (ADR-032) — search on it is
+    exact-match only via its lookup_hash companion."""
 
     list_display = ["created_at", "tenant", "event_type", "channel", "recipient", "status"]
     list_filter = ["status", "channel", "event_type", "tenant"]
-    search_fields = ["recipient", "correlation_id"]
+    search_fields = ["correlation_id"]
+    encrypted_exact_search_fields = ["recipient"]
     autocomplete_fields = ["tenant"]
 
     def has_add_permission(self, request):

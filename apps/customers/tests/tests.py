@@ -1,6 +1,8 @@
 import pytest
-from django.db import IntegrityError
+from django.db import IntegrityError, connection
+from django.core.exceptions import FieldError
 
+from apps.core.encrypted_fields import compute_lookup_hash
 from apps.customers.models import Customer, CustomerAccount
 from apps.customers.services import get_or_create_customer, get_or_create_customer_account
 
@@ -67,3 +69,52 @@ class TestCustomerAccountIdempotency:
         CustomerAccount.objects.create(tenant=tenant, customer=customer, name="Account 1")
         CustomerAccount.objects.create(tenant=tenant, customer=customer, name="Account 2")
         assert customer.accounts.count() == 2
+
+
+@pytest.mark.django_db
+class TestCustomerFieldEncryption:
+    """Customer.full_name/email/phone_number are encrypted at rest —
+    ARCHITECTURE_DECISIONS ADR-032."""
+
+    def test_stored_value_is_ciphertext_not_plaintext(self, make_tenant):
+        tenant = make_tenant()
+        customer = Customer.objects.create(
+            tenant=tenant, full_name="Amina Juma", email="amina@example.com", phone_number="+255700000000"
+        )
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT full_name, email, phone_number FROM customers_customer WHERE id = %s",
+                [str(customer.pk)],
+            )
+            raw_full_name, raw_email, raw_phone = cursor.fetchone()
+        assert raw_full_name != "Amina Juma"
+        assert raw_email != "amina@example.com"
+        assert raw_phone != "+255700000000"
+        # But the ORM transparently decrypts on read.
+        customer.refresh_from_db()
+        assert customer.full_name == "Amina Juma"
+        assert customer.email == "amina@example.com"
+        assert customer.phone_number == "+255700000000"
+
+    def test_lookup_hash_columns_are_kept_in_sync_on_save(self, make_tenant):
+        tenant = make_tenant()
+        customer = Customer.objects.create(
+            tenant=tenant, full_name="Amina Juma", email="Amina@Example.com", phone_number="+255700000000"
+        )
+        assert customer.full_name_lookup_hash == compute_lookup_hash("Amina Juma")
+        # Email hash is computed against the lowercased value — search is
+        # meant to be case-insensitive for email specifically.
+        assert customer.email_lookup_hash == compute_lookup_hash("amina@example.com")
+        assert customer.phone_number_lookup_hash == compute_lookup_hash("+255700000000")
+
+    def test_filtering_by_the_encrypted_field_directly_is_rejected(self, make_tenant):
+        with pytest.raises(FieldError):
+            Customer.objects.filter(full_name="Amina Juma")
+
+    def test_exact_match_search_finds_by_lookup_hash(self, make_tenant):
+        tenant = make_tenant()
+        Customer.objects.create(tenant=tenant, full_name="Amina Juma")
+        found = Customer.objects.filter(full_name_lookup_hash=compute_lookup_hash("Amina Juma"))
+        assert found.count() == 1
+        not_found = Customer.objects.filter(full_name_lookup_hash=compute_lookup_hash("Amina"))
+        assert not_found.count() == 0

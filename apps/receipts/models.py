@@ -15,6 +15,7 @@ import uuid
 from django.db import models
 from django.utils import timezone
 
+from apps.core.encrypted_fields import EncryptedCharField, compute_lookup_hash
 from apps.core.models import TenantScopedModel
 from apps.core.money import money_field_kwargs
 
@@ -26,7 +27,12 @@ class Receipt(TenantScopedModel):
 
     # Snapshot — see module docstring.
     institution_name = models.CharField(max_length=200)
-    customer_name = models.CharField(max_length=255)
+    # Encrypted at rest (ARCHITECTURE_DECISIONS ADR-032) — it's a payer's
+    # name, still shown back to that same payer on their own receipt
+    # (see module docstring), but encrypting it protects against a bulk
+    # DB compromise revealing many customers' names at once.
+    customer_name = EncryptedCharField(max_length=255)
+    customer_name_lookup_hash = models.CharField(max_length=64, db_index=True, editable=False, default="")
     bill_number = models.CharField(max_length=40, blank=True)
     control_number = models.CharField(max_length=32)
     payment_reference = models.CharField(max_length=64)
@@ -47,4 +53,5 @@ class Receipt(TenantScopedModel):
     def save(self, *args, **kwargs):
         if not self.receipt_number:
             self.receipt_number = f"RCPT-{timezone.now():%Y%m%d}-{uuid.uuid4().hex[:8].upper()}"
+        self.customer_name_lookup_hash = compute_lookup_hash(self.customer_name)
         super().save(*args, **kwargs)

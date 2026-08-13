@@ -1,5 +1,6 @@
 from django.contrib import admin
 
+from apps.core.encrypted_fields import EncryptedFieldSearchAdminMixin
 from apps.tenants.models import Tenant, TenantMembership
 
 
@@ -10,10 +11,14 @@ class TenantMembershipInline(admin.TabularInline):
 
 
 @admin.register(Tenant)
-class TenantAdmin(admin.ModelAdmin):
+class TenantAdmin(EncryptedFieldSearchAdminMixin, admin.ModelAdmin):
+    """contact_email is encrypted at rest (ADR-032) — search on it is
+    exact-match only via its lookup_hash companion."""
+
     list_display = ["name", "sector", "status", "default_currency", "created_at"]
     list_filter = ["status", "sector"]
-    search_fields = ["name", "contact_email", "slug"]
+    search_fields = ["name", "slug"]
+    encrypted_exact_search_fields = ["contact_email"]
     prepopulated_fields = {"slug": ("name",)}
     inlines = [TenantMembershipInline]
     readonly_fields = ["id", "created_at", "updated_at"]

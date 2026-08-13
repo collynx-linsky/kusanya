@@ -154,3 +154,79 @@ def test_health_monitor_periodic_task_is_seeded_by_migration():
     task = PeriodicTask.objects.get(name="Monitor system health")
     assert task.task == "apps.core.tasks.monitor_system_health"
     assert task.enabled is True
+
+
+class TestEncryptedFields:
+    """apps.core.encrypted_fields — the field-level-encryption mechanism
+    itself, independent of any one model that uses it. See
+    ARCHITECTURE_DECISIONS ADR-032."""
+
+    def test_a_value_round_trips_through_encrypt_and_decrypt(self):
+        from apps.core.encrypted_fields import EncryptedTextField
+
+        field = EncryptedTextField()
+        ciphertext = field.get_prep_value("Amina Hassan")
+        assert ciphertext != "Amina Hassan"
+        assert field.from_db_value(ciphertext, None, None) == "Amina Hassan"
+
+    def test_the_same_plaintext_encrypts_differently_each_time(self):
+        """Non-determinism is the whole reason .filter(field=x) is
+        disallowed below -- confirms that property actually holds."""
+        from apps.core.encrypted_fields import EncryptedTextField
+
+        field = EncryptedTextField()
+        first = field.get_prep_value("Amina Hassan")
+        second = field.get_prep_value("Amina Hassan")
+        assert first != second
+        assert field.from_db_value(first, None, None) == "Amina Hassan"
+        assert field.from_db_value(second, None, None) == "Amina Hassan"
+
+    def test_none_and_empty_string_pass_through_unencrypted(self):
+        from apps.core.encrypted_fields import EncryptedTextField
+
+        field = EncryptedTextField()
+        assert field.get_prep_value(None) is None
+        assert field.get_prep_value("") == ""
+        assert field.from_db_value(None, None, None) is None
+
+    def test_a_corrupted_value_reports_unreadable_instead_of_raising(self):
+        from apps.core.encrypted_fields import EncryptedTextField
+
+        field = EncryptedTextField()
+        assert field.from_db_value("not-valid-ciphertext", None, None) == "[unreadable: decryption failed]"
+
+    def test_exact_lookup_is_rejected_to_avoid_silently_matching_nothing(self):
+        from django.core.exceptions import FieldError
+
+        from apps.core.encrypted_fields import EncryptedTextField
+
+        field = EncryptedTextField()
+        with pytest.raises(FieldError):
+            field.get_lookup("exact")
+        with pytest.raises(FieldError):
+            field.get_lookup("icontains")
+
+    def test_isnull_lookup_is_still_allowed(self):
+        from apps.core.encrypted_fields import EncryptedTextField
+
+        field = EncryptedTextField()
+        assert field.get_lookup("isnull") is not None
+
+    def test_char_variant_enforces_max_length_on_plaintext(self):
+        from apps.core.encrypted_fields import EncryptedCharField
+
+        field = EncryptedCharField(max_length=5)
+        field.get_prep_value("short")  # exactly 5, fine
+        with pytest.raises(ValueError):
+            field.get_prep_value("too long for five")
+
+    def test_lookup_hash_is_deterministic_and_value_sensitive(self):
+        from apps.core.encrypted_fields import compute_lookup_hash
+
+        assert compute_lookup_hash("+255700000001") == compute_lookup_hash("+255700000001")
+        assert compute_lookup_hash("+255700000001") != compute_lookup_hash("+255700000002")
+
+    def test_lookup_hash_ignores_surrounding_whitespace(self):
+        from apps.core.encrypted_fields import compute_lookup_hash
+
+        assert compute_lookup_hash("  Amina Hassan  ") == compute_lookup_hash("Amina Hassan")

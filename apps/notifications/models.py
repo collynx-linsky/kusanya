@@ -9,6 +9,7 @@ message sent/attempted — the delivery record).
 
 from django.db import models
 
+from apps.core.encrypted_fields import EncryptedCharField, compute_lookup_hash
 from apps.core.models import TenantScopedModel
 
 
@@ -65,7 +66,9 @@ class NotificationStatus(models.TextChoices):
 class Notification(TenantScopedModel):
     event_type = models.CharField(max_length=32, choices=NotificationEventType.choices, db_index=True)
     channel = models.CharField(max_length=16, choices=NotificationChannel.choices)
-    recipient = models.CharField(max_length=255, help_text="Email address or phone number.")
+    # Encrypted at rest (ARCHITECTURE_DECISIONS ADR-032).
+    recipient = EncryptedCharField(max_length=255, help_text="Email address or phone number.")
+    recipient_lookup_hash = models.CharField(max_length=64, db_index=True, editable=False, default="")
     subject = models.CharField(max_length=255, blank=True)
     body = models.TextField()
 
@@ -78,6 +81,10 @@ class Notification(TenantScopedModel):
     class Meta:
         ordering = ["-created_at"]
         indexes = [models.Index(fields=["tenant", "status", "created_at"])]
+
+    def save(self, *args, **kwargs):
+        self.recipient_lookup_hash = compute_lookup_hash(self.recipient)
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.get_event_type_display()} -> {self.recipient} ({self.status})"

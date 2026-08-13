@@ -12,6 +12,12 @@ class _BootstrapFormMixin:
 
 
 class CustomerForm(_BootstrapFormMixin, forms.ModelForm):
+    # Explicit override: Customer.email is EncryptedCharField (stored as
+    # TEXT so it can be encrypted), which ModelForm would otherwise
+    # auto-generate as a plain CharField — this restores the email
+    # format validation an EmailField gave for free before ADR-032.
+    email = forms.EmailField(required=False, label="Email")
+
     class Meta:
         model = Customer
         fields = ["full_name", "email", "phone_number", "external_reference"]

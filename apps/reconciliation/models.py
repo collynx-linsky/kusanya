@@ -10,6 +10,7 @@ can't detect.
 
 from django.db import models
 
+from apps.core.encrypted_fields import EncryptedTextField
 from apps.core.models import TenantScopedModel
 
 
@@ -69,7 +70,9 @@ class ReconciliationException(TenantScopedModel):
     resolved_by = models.ForeignKey(
         "users.User", null=True, blank=True, on_delete=models.SET_NULL, related_name="reconciliation_exceptions_resolved"
     )
-    resolution_notes = models.TextField(blank=True)
+    # Encrypted at rest (ARCHITECTURE_DECISIONS ADR-032) — free text,
+    # never externally serialized, no lookup_hash companion needed.
+    resolution_notes = EncryptedTextField(blank=True)
 
     class Meta:
         ordering = ["-created_at"]

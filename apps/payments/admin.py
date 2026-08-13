@@ -1,5 +1,6 @@
 from django.contrib import admin
 
+from apps.core.encrypted_fields import EncryptedFieldSearchAdminMixin
 from apps.payments.models import Payment, PaymentAllocation, PaymentCallbackEvent
 
 
@@ -10,10 +11,14 @@ class PaymentAllocationInline(admin.TabularInline):
 
 
 @admin.register(Payment)
-class PaymentAdmin(admin.ModelAdmin):
+class PaymentAdmin(EncryptedFieldSearchAdminMixin, admin.ModelAdmin):
+    """payer_reference is encrypted at rest (ADR-032) — search on it is
+    exact-match only via its lookup_hash companion."""
+
     list_display = ["merchant_reference", "tenant", "amount", "currency", "status", "provider", "initiated_at"]
     list_filter = ["status", "provider", "tenant"]
-    search_fields = ["merchant_reference", "provider_reference", "idempotency_key", "payer_reference"]
+    search_fields = ["merchant_reference", "provider_reference", "idempotency_key"]
+    encrypted_exact_search_fields = ["payer_reference"]
     autocomplete_fields = ["tenant", "control_number", "provider", "channel"]
     readonly_fields = ["merchant_reference", "initiated_at", "completed_at"]
     inlines = [PaymentAllocationInline]

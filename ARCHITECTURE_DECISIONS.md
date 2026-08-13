@@ -925,3 +925,108 @@ An outage before either is configured produces a `logger.error` line
 still strictly better than the pre-Phase-7 state of no scheduled check
 existing at all, but not a substitute for a real external monitor once
 this deploys somewhere that has one available.
+
+## ADR-032: Field-level encryption at rest via Fernet + HMAC lookup-hash companions, not a third-party field-encryption library
+
+**Decision:** `apps.core.encrypted_fields.EncryptedCharField`/`EncryptedTextField`
+transparently Fernet-encrypt (AES-128-CBC + HMAC-SHA256, authenticated,
+non-deterministic) on save and decrypt on load, keyed by a value derived
+from `settings.FIELD_ENCRYPTION_KEY` (itself derived from `SECRET_KEY` in
+dev/test, required explicitly in production — same fail-loud pattern as
+`SECRET_KEY` itself). Every lookup except `isnull` is disabled at the
+field level (`get_lookup` raises `FieldError`) so a `.filter(field=...)`
+mistake fails loudly instead of silently matching nothing, since
+Fernet's non-determinism means the same plaintext never produces the
+same ciphertext twice.
+
+Fields that are also searched in Django admin get a companion
+`<field>_lookup_hash` column — deterministic HMAC-SHA256 of the
+normalized value (`apps.core.encrypted_fields.compute_lookup_hash`),
+kept in sync by each model's `save()` — and `EncryptedFieldSearchAdminMixin`
+restores admin search on them as an **exact-match-only** query against
+that column, not the substring match `search_fields` normally gives.
+This is the same lookup-hash pattern already proven for MFA backup
+codes (`apps.accounts.models._backup_code_lookup_hash`, ADR-027) —
+applied here to a second, unrelated problem because it's the right
+answer to the same underlying question: "how do you support exact
+lookup against something you can't decrypt cheaply/deterministically."
+
+Applied to: `Customer.full_name/email/phone_number`,
+`User.first_name/last_name/phone_number`,
+`Tenant.contact_email/contact_phone`, `Branch.address`, `Bill.notes`,
+`SettlementBatch.notes`, `ReconciliationException.resolution_notes`,
+`Receipt.customer_name`, `Notification.recipient`,
+`Payment.payer_reference`. Each migration follows the same three-step
+sequence, in this order, because getting the order wrong actively
+corrupts data:
+
+1. Add the `lookup_hash` column (if any) and widen the target column to
+   unbounded TEXT — ciphertext is longer than the original
+   varchar limit, and doing this *after* encrypting would truncate/error.
+2. A data migration (`RunPython`) that re-encodes every existing row
+   from plaintext to ciphertext and computes `lookup_hash`, using
+   Django's historical model — which at this point in migration history
+   is still the *plain* field type, so `.update()` writes the computed
+   ciphertext as a literal string rather than re-encrypting it.
+3. `AlterField` to the real `EncryptedCharField`/`EncryptedTextField` —
+   only now is it safe, because the DB already holds valid ciphertext.
+
+**Reason (why build this instead of `django-cryptography`/`django-fernet-fields`):**
+this codebase already has zero tolerance for opaque dependencies where a
+small, auditable implementation is straightforward (see ADR-025/ADR-027
+making the identical call for TOTP and backup-code hashing) — Fernet
+itself is `cryptography`'s own well-reviewed primitive; what this file
+adds is ~150 lines of Django field plumbing, not cryptography.
+
+**Reason (scope):** three options were on the table before any code was
+written — leave searchable PII unencrypted, encrypt everything and
+accept losing admin search on those fields entirely, or encrypt
+everything and rebuild exact-match search via a lookup_hash. The third
+was chosen: "encrypt everything, keep exact-match search." The real,
+unavoidable cost that comes with it: Django admin's substring/fuzzy
+search (`icontains`) on every field listed above is gone permanently —
+typing part of a name or the last 4 digits of a phone number no longer
+finds a record; only the complete, exact value does.
+`Customer.Meta.ordering`/`CustomerAccount.Meta.ordering` were also
+changed away from `full_name` to `-created_at`/`customer_id` for the
+same underlying reason — sorting by ciphertext has no relationship to
+alphabetical order.
+
+**Deliberately deferred, not forgotten:**
+
+- **`User.email`** — NOT encrypted. It is `USERNAME_FIELD`, has a
+  DB-level `unique=True` constraint, and is looked up via exact match on
+  *every single login* (`ModelBackend.get_by_natural_key`). A
+  lookup_hash column could in principle support this too, but changing
+  the field the entire authentication path depends on is a materially
+  higher-risk change than any field in this ADR, and deserves dedicated
+  review (and its own live-verified login testing) rather than being
+  bundled into a 10-model sweep. `Tenant.contact_email`/`Customer.email`
+  are encrypted; `User.email` is the one deliberate, documented
+  exception.
+- **`apps.audit.models.AuditLog`** (`before`/`after`/`metadata`/`actor_label`/`ip_address`/`user_agent`)
+  — NOT encrypted. `AuditLog.record_hash` is a hash-chain over these
+  exact field values (ADR-006) — encrypting them would need to happen
+  *before* hash computation, or the chain would only attest to
+  ciphertext, and `AuditLog` blocks `.save()` on existing rows entirely,
+  which the two-phase "encrypt then swap field type" migration sequence
+  above assumes it can freely `.update()` around. Revisiting this
+  needs its own design pass against the hash-chain guarantee specifically,
+  not a mechanical application of this ADR's pattern.
+- **`WebhookDelivery.payload`, `PaymentCallbackEvent.raw_payload`** — NOT
+  encrypted. This data has already left the system in plaintext (an
+  outbound webhook call, an inbound provider callback) by the time it's
+  stored — encrypting the local copy doesn't reduce what's already been
+  shared externally, so it wasn't judged worth the same migration risk
+  for a smaller marginal benefit than the fields above.
+
+**Consequences:** `FIELD_ENCRYPTION_KEY` rotation invalidates every
+encrypted value and every lookup_hash simultaneously (same tradeoff
+already accepted for `SECRET_KEY` in ADR-027) — there is no key-rotation
+tooling yet; rotating it today means every encrypted field becomes
+unreadable (`from_db_value` returns `"[unreadable: decryption failed]"`
+rather than raising, so this fails visibly, not silently, but it is a
+real outage of that data). Losing `FIELD_ENCRYPTION_KEY` outright means
+that data is permanently unrecoverable — this is the correct behavior
+for encryption at rest, but is worth stating plainly: back up the key
+with at least the same care as the database itself.

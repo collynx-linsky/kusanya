@@ -9,6 +9,7 @@ Nothing sector-specific belongs here. Nothing payment-provider-specific
 belongs here (see apps/providers, introduced in Phase 3).
 """
 
+import hashlib
 from datetime import timedelta
 from pathlib import Path
 
@@ -28,6 +29,18 @@ if env_file.exists():
 
 SECRET_KEY = env("DJANGO_SECRET_KEY", default="insecure-dev-key-change-me")
 DEBUG = env.bool("DJANGO_DEBUG", default=False)
+
+# Field-level encryption at rest (apps.core.encrypted_fields) — see
+# ARCHITECTURE_DECISIONS ADR-032. Dev/test fall back to a key derived
+# deterministically from SECRET_KEY so they work with zero extra setup;
+# production.py requires FIELD_ENCRYPTION_KEY explicitly (no default,
+# same fail-loud pattern as SECRET_KEY above) since the dev fallback
+# would make encrypted data recoverable by anyone who ever saw the
+# insecure dev SECRET_KEY.
+FIELD_ENCRYPTION_KEY = env(
+    "FIELD_ENCRYPTION_KEY",
+    default=hashlib.sha256(f"kusanya-dev-field-key:{SECRET_KEY}".encode()).hexdigest(),
+)
 ALLOWED_HOSTS = env.list("DJANGO_ALLOWED_HOSTS", default=["localhost", "127.0.0.1"])
 
 # ---------------------------------------------------------------------------

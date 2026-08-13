@@ -11,6 +11,7 @@ bespoke columns — see docs/PRODUCT_REQUIREMENTS.md#universal-data-model.
 
 from django.db import models
 
+from apps.core.encrypted_fields import EncryptedCharField, compute_lookup_hash
 from apps.core.models import TenantScopedModel
 
 
@@ -20,11 +21,20 @@ class Customer(TenantScopedModel):
     `full_name` is a single field rather than first/last — some tenants
     bill organizations (a company paying a training institution) as a
     "customer," where first/last name doesn't apply.
+
+    `full_name`/`email`/`phone_number` are encrypted at rest (see
+    ARCHITECTURE_DECISIONS ADR-032) — each has a companion
+    `<field>_lookup_hash` column, kept in sync by `save()` below, that
+    supports exact-match search (used by apps.customers.admin) since
+    Django admin's normal substring search can't work over ciphertext.
     """
 
-    full_name = models.CharField(max_length=255)
-    email = models.EmailField(blank=True)
-    phone_number = models.CharField(max_length=32, blank=True)
+    full_name = EncryptedCharField(max_length=255)
+    full_name_lookup_hash = models.CharField(max_length=64, db_index=True, editable=False, default="")
+    email = EncryptedCharField(max_length=254, blank=True)
+    email_lookup_hash = models.CharField(max_length=64, db_index=True, editable=False, blank=True, default="")
+    phone_number = EncryptedCharField(max_length=32, blank=True)
+    phone_number_lookup_hash = models.CharField(max_length=64, db_index=True, editable=False, blank=True, default="")
 
     # Set by the caller (typically an ERP integration, Phase 6) to make
     # customer creation idempotent — see apps.customers.services.
@@ -34,7 +44,10 @@ class Customer(TenantScopedModel):
     is_active = models.BooleanField(default=True)
 
     class Meta:
-        ordering = ["full_name"]
+        # Not `full_name` — ordering by an encrypted column would sort
+        # by ciphertext, which has no relationship to alphabetical
+        # order. Most-recently-created is the practical fallback.
+        ordering = ["-created_at"]
         constraints = [
             models.UniqueConstraint(
                 fields=["tenant", "external_reference"],
@@ -42,6 +55,12 @@ class Customer(TenantScopedModel):
                 name="unique_customer_external_reference_per_tenant",
             )
         ]
+
+    def save(self, *args, **kwargs):
+        self.full_name_lookup_hash = compute_lookup_hash(self.full_name)
+        self.email_lookup_hash = compute_lookup_hash(self.email.lower()) if self.email else ""
+        self.phone_number_lookup_hash = compute_lookup_hash(self.phone_number)
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return self.full_name
@@ -72,7 +91,8 @@ class CustomerAccount(TenantScopedModel):
     is_active = models.BooleanField(default=True)
 
     class Meta:
-        ordering = ["customer__full_name", "name"]
+        # Not customer__full_name — see Customer.Meta's comment above.
+        ordering = ["customer_id", "name"]
         constraints = [
             models.UniqueConstraint(
                 fields=["tenant", "external_reference"],

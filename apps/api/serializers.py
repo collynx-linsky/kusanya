@@ -30,6 +30,14 @@ class InstitutionSerializer(serializers.ModelSerializer):
 
 
 class CustomerSerializer(serializers.ModelSerializer):
+    # Explicit declaration: Customer.email is EncryptedCharField (ADR-032)
+    # so DRF can't infer "this is email-shaped" from the model field type
+    # the way it could when it was models.EmailField — this keeps the
+    # OpenAPI schema (drf-spectacular) accurate. Read-only usage only
+    # (see apps.api.views.CustomerListCreateView/CustomerDetailView) —
+    # writes go through CustomerCreateSerializer below.
+    email = serializers.EmailField(allow_blank=True, read_only=True)
+
     class Meta:
         model = Customer
         fields = ["id", "full_name", "email", "phone_number", "external_reference", "is_active", "created_at"]

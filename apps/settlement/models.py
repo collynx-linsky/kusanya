@@ -13,6 +13,7 @@ import uuid
 from django.db import models
 from django.utils import timezone
 
+from apps.core.encrypted_fields import EncryptedTextField
 from apps.core.models import TenantScopedModel
 from apps.core.money import money_field_kwargs
 
@@ -42,7 +43,9 @@ class SettlementBatch(TenantScopedModel):
         max_length=150, blank=True,
         help_text="The provider/bank's own reference for the actual funds transfer — entered when marking this batch completed.",
     )
-    notes = models.TextField(blank=True)
+    # Encrypted at rest (ARCHITECTURE_DECISIONS ADR-032) — free text,
+    # never externally serialized, no lookup_hash companion needed.
+    notes = EncryptedTextField(blank=True)
 
     class Meta:
         ordering = ["-period_end"]

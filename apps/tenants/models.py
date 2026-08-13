@@ -12,6 +12,7 @@ from django.conf import settings
 from django.db import models
 from django.utils.text import slugify
 
+from apps.core.encrypted_fields import EncryptedCharField, compute_lookup_hash
 from apps.core.models import BaseModel
 
 
@@ -48,8 +49,12 @@ class Tenant(BaseModel):
     sector = models.CharField(max_length=32, choices=Sector.choices, default=Sector.OTHER)
     status = models.CharField(max_length=16, choices=Status.choices, default=Status.PENDING)
 
-    contact_email = models.EmailField()
-    contact_phone = models.CharField(max_length=32, blank=True)
+    # Encrypted at rest (ARCHITECTURE_DECISIONS ADR-032). contact_email
+    # has a lookup_hash companion (it's admin-searched); contact_phone
+    # doesn't need one (it isn't).
+    contact_email = EncryptedCharField(max_length=254)
+    contact_email_lookup_hash = models.CharField(max_length=64, db_index=True, editable=False, default="")
+    contact_phone = EncryptedCharField(max_length=32, blank=True)
 
     default_currency = models.CharField(max_length=3, default="TZS")
 
@@ -90,6 +95,7 @@ class Tenant(BaseModel):
     def save(self, *args, **kwargs):
         if not self.slug:
             self.slug = slugify(self.name)[:220]
+        self.contact_email_lookup_hash = compute_lookup_hash(self.contact_email.lower())
         super().save(*args, **kwargs)
 
 

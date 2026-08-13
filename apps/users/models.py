@@ -15,17 +15,39 @@ import uuid
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 
+from apps.core.encrypted_fields import EncryptedCharField, compute_lookup_hash
 from apps.core.models import BaseModel
 from apps.users.managers import UserManager
 
 
 class User(AbstractUser):
-    """Email-authenticated user. No username field."""
+    """Email-authenticated user. No username field.
+
+    `email` is deliberately NOT encrypted — it's `USERNAME_FIELD`, has a
+    DB-level `unique=True` constraint, and is looked up via exact match
+    (`ModelBackend.get_by_natural_key`) on every single login. Encrypting
+    it would need the same lookup_hash pattern used below for
+    first_name/last_name, but the login path specifically needs a
+    UNIQUE, database-enforced constraint — a lookup_hash column can
+    support that too, but changing the field every login authenticates
+    against is a materially higher-risk change than the fields below,
+    and deserves its own dedicated review rather than being bundled in
+    here. See ARCHITECTURE_DECISIONS ADR-032 for the full reasoning and
+    this explicit deferral.
+
+    `first_name`/`last_name` (overriding AbstractUser's plain
+    CharFields, the same way `email` already overrides its parent) and
+    `phone_number` are encrypted at rest.
+    """
 
     username = None
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     email = models.EmailField(unique=True)
-    phone_number = models.CharField(max_length=32, blank=True)
+    first_name = EncryptedCharField(max_length=150, blank=True)
+    first_name_lookup_hash = models.CharField(max_length=64, db_index=True, editable=False, blank=True, default="")
+    last_name = EncryptedCharField(max_length=150, blank=True)
+    last_name_lookup_hash = models.CharField(max_length=64, db_index=True, editable=False, blank=True, default="")
+    phone_number = EncryptedCharField(max_length=32, blank=True)
 
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = []
@@ -34,6 +56,11 @@ class User(AbstractUser):
 
     class Meta:
         ordering = ["email"]
+
+    def save(self, *args, **kwargs):
+        self.first_name_lookup_hash = compute_lookup_hash(self.first_name) if self.first_name else ""
+        self.last_name_lookup_hash = compute_lookup_hash(self.last_name) if self.last_name else ""
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return self.email

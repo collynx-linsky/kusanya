@@ -17,6 +17,8 @@ if SECRET_KEY == "insecure-dev-key-change-me":  # nosec B105
 
 ALLOWED_HOSTS = env.list("DJANGO_ALLOWED_HOSTS")  # no default — must be set
 
+FIELD_ENCRYPTION_KEY = env("FIELD_ENCRYPTION_KEY")  # no default — must be set explicitly, never the dev-derived fallback
+
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
 SECURE_SSL_REDIRECT = env.bool("DJANGO_SECURE_SSL_REDIRECT", default=True)

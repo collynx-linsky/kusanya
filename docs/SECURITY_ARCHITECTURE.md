@@ -87,6 +87,19 @@ overstating any of these would be its own security problem.
   outbound email requires `EMAIL_HOST`/`EMAIL_HOST_USER`/`EMAIL_HOST_PASSWORD`
   to actually be set in production (inert, same pattern as `SENTRY_DSN`,
   until they are). See ADR-031.
+- **Field-level encryption at rest** — `apps.core.encrypted_fields`
+  (Fernet, authenticated/non-deterministic), applied to
+  `Customer.full_name/email/phone_number`, `User.first_name/last_name/phone_number`,
+  `Tenant.contact_email/contact_phone`, `Branch.address`, `Bill.notes`,
+  `SettlementBatch.notes`, `ReconciliationException.resolution_notes`,
+  `Receipt.customer_name`, `Notification.recipient`, and
+  `Payment.payer_reference`. Fields also used for admin search get a
+  companion HMAC `lookup_hash` column (same pattern as MFA backup codes,
+  ADR-027) so admin search still works, but exact-match only — substring
+  search on these fields is gone. See ADR-032, including two deliberate
+  exceptions it documents in full: `User.email` (login-critical, not
+  encrypted) and `AuditLog`'s fields (hash-chain interaction, not
+  encrypted).
 
 ## Configured but not yet exercised
 
@@ -101,11 +114,6 @@ overstating any of these would be its own security problem.
 
 ## Explicitly not implemented yet
 
-- **Field-level encryption** — no encrypted model fields yet; nothing in
-  the current data model (email, names, tenant contact info) is currently
-  classified as requiring it, but payment-adjacent PII should be
-  revisited against Tanzania's Personal Data Protection Act obligations —
-  see [compliance/REGULATORY_ASSUMPTIONS.md](compliance/REGULATORY_ASSUMPTIONS.md).
 - **APM / intrusion detection / external uptime monitoring** — still
   nothing. `SENTRY_DSN` remains a wiring point in `production.py`, inert
   until a DSN is provisioned; and nothing external polls `/healthz/` —
