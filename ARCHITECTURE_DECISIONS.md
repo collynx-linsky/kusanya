@@ -889,3 +889,39 @@ against any specific attack. `/api/` is excluded from this middleware
 entirely (the API's DRF throttling already covers it, with different,
 more precise per-credential semantics) to avoid two different rate
 limiters disagreeing about the same request.
+
+## ADR-031: Monitoring gets a scheduled internal health check + email alert, not a fabricated APM integration
+
+**Decision:** `apps.core.healthchecks.run_health_checks()` is the one
+real implementation of "check database/cache/Celery-broker," used by
+both `apps.core.views.health_check` (the existing passive HTTP probe)
+and the new `apps.core.tasks.monitor_system_health` — a Celery Beat task
+seeded to run every 5 minutes (`apps/core/migrations/0002_seed_health_monitor_schedule.py`,
+a data migration creating the `IntervalSchedule`/`PeriodicTask` rows
+`django_celery_beat`'s `DatabaseScheduler` reads). On failure it emails
+`settings.ADMINS` via Django's `mail_admins()`.
+
+**Reason:** "Add monitoring/alerting" could mean wiring a real APM
+product (Datadog, New Relic, PagerDuty) — none of which this project has
+an account for, and inventing a fake integration against a
+service/credentials that don't exist would violate the same "no fake
+functionality" rule the build spec applies to payment providers. What
+*can* be built honestly, with infrastructure this project already runs
+(Celery Beat, Redis, Django's own mail framework), is a real scheduled
+check that does something real on failure. It's a genuinely useful,
+narrower tool — not a placeholder standing in for a future integration —
+and it closes the specific gap that nothing was watching `/healthz/` on
+its own.
+
+**Consequences:** This is not APM (no tracing, no performance metrics,
+no dashboards) and not intrusion detection — `docs/SECURITY_ARCHITECTURE.md`
+still lists both as absent, honestly. `mail_admins()` requires
+`settings.ADMINS` to be non-empty (`PLATFORM_ALERT_EMAILS` env var) and a
+working SMTP configuration (`EMAIL_HOST`/`EMAIL_HOST_USER`/`EMAIL_HOST_PASSWORD`
+in `production.py`, unset by default) to reach anyone — exactly the same
+"real code, inert until deployed with real config" shape as `SENTRY_DSN`.
+An outage before either is configured produces a `logger.error` line
+(picked up by structured JSON logging in production) and nothing else —
+still strictly better than the pre-Phase-7 state of no scheduled check
+existing at all, but not a substitute for a real external monitor once
+this deploys somewhere that has one available.

@@ -28,6 +28,17 @@ SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 CSRF_TRUSTED_ORIGINS = env.list("DJANGO_CSRF_TRUSTED_ORIGINS", default=[])
 
+# Real SMTP wiring point for both apps.notifications' email channel and
+# platform alert emails (apps.core.tasks.monitor_system_health). Same
+# "inert until deployed with real config" pattern as SENTRY_DSN below —
+# with no EMAIL_HOST set, Django's SMTP backend will simply fail to
+# connect rather than silently pretend to send.
+EMAIL_HOST = env("EMAIL_HOST", default="")
+EMAIL_PORT = env.int("EMAIL_PORT", default=587)
+EMAIL_HOST_USER = env("EMAIL_HOST_USER", default="")
+EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", default="")
+EMAIL_USE_TLS = env.bool("EMAIL_USE_TLS", default=True)
+
 # Structured (one-JSON-object-per-line) logging — see
 # apps/core/logging.py::JsonFormatter and docs/SECURITY_ARCHITECTURE.md.
 # Only the formatter changes; handlers/filters/loggers are inherited from

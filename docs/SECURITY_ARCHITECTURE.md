@@ -79,6 +79,14 @@ overstating any of these would be its own security problem.
   covers ordinary portal/dashboard requests (120/minute per user or IP by
   default), on top of the existing login/MFA lockout and the API's own
   DRF throttling. Fails open on a cache outage. See ADR-030.
+- **Scheduled health monitoring with alerting** — `apps.core.tasks.monitor_system_health`
+  runs the same database/cache/Celery-broker checks as `/healthz/` on a
+  5-minute Celery Beat schedule and emails `settings.ADMINS`
+  (`PLATFORM_ALERT_EMAILS` env var) when something's down — so a failure
+  is noticed even with no external uptime monitor configured. Real
+  outbound email requires `EMAIL_HOST`/`EMAIL_HOST_USER`/`EMAIL_HOST_PASSWORD`
+  to actually be set in production (inert, same pattern as `SENTRY_DSN`,
+  until they are). See ADR-031.
 
 ## Configured but not yet exercised
 
@@ -98,11 +106,12 @@ overstating any of these would be its own security problem.
   classified as requiring it, but payment-adjacent PII should be
   revisited against Tanzania's Personal Data Protection Act obligations —
   see [compliance/REGULATORY_ASSUMPTIONS.md](compliance/REGULATORY_ASSUMPTIONS.md).
-- **Monitoring/alerting, intrusion detection** — `apps.core.views.health_check`
-  is a real liveness/readiness probe (database, cache, and Celery broker,
-  Phase 7), but nothing is actually polling it, and there's no alerting,
-  APM, or intrusion detection wired up. `SENTRY_DSN` is a wiring point in
-  `production.py`, inert until a DSN is provisioned.
+- **APM / intrusion detection / external uptime monitoring** — still
+  nothing. `SENTRY_DSN` remains a wiring point in `production.py`, inert
+  until a DSN is provisioned; and nothing external polls `/healthz/` —
+  see ADR-031 for what *does* now cover the gap (a scheduled internal
+  check), which is a real but partial answer, not a substitute for
+  either.
 - **MFA is opt-in, not enforced** — a confirmed `MFADevice` gates login,
   but nothing requires platform staff or tenant staff to enable one.
   Making MFA mandatory for specific roles (e.g. platform staff) is a

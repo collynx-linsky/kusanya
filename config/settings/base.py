@@ -180,6 +180,18 @@ REQUEST_RATE_LIMIT_WINDOW_SECONDS = env.int("REQUEST_RATE_LIMIT_WINDOW_SECONDS",
 REQUEST_RATE_LIMIT_EXEMPT_PREFIXES = ("/healthz", "/static/", "/media/", "/api/")
 
 # ---------------------------------------------------------------------------
+# Platform alerting (apps.core.tasks.monitor_system_health) — who gets
+# emailed when the periodic health check fails. Empty by default: Django's
+# mail_admins() is a documented no-op with no ADMINS configured, same
+# "inert until deployed with real config" pattern as SENTRY_DSN in
+# production.py. See ARCHITECTURE_DECISIONS ADR-031.
+# ---------------------------------------------------------------------------
+
+ADMINS = [(email, email) for email in env.list("PLATFORM_ALERT_EMAILS", default=[])]
+SERVER_EMAIL = env("SERVER_EMAIL", default="kusanya@localhost")
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="kusanya@localhost")
+
+# ---------------------------------------------------------------------------
 # Password validation
 # ---------------------------------------------------------------------------
 

@@ -7,10 +7,10 @@ this module only decides which one a given authenticated user lands on.
 import logging
 
 from django.contrib.auth.decorators import login_required
-from django.core.cache import cache
-from django.db import connection
 from django.http import JsonResponse
 from django.shortcuts import redirect, render
+
+from apps.core.healthchecks import run_health_checks
 
 logger = logging.getLogger("kusanya")
 
@@ -34,38 +34,14 @@ def health_check(request):
     broker outage means nothing in apps.webhooks/apps.notifications/etc.
     ever gets delivered) and could point at different instances in a
     real deployment.
+
+    This is the passive half of monitoring — something external has to
+    actually poll it. apps.core.tasks.monitor_system_health is the active
+    half: a Celery Beat task that runs the same checks on a schedule and
+    emails platform admins on failure, so a failure is noticed even if
+    nothing is polling this endpoint. See ARCHITECTURE_DECISIONS ADR-031.
     """
-    checks = {}
-    healthy = True
-
-    try:
-        with connection.cursor() as cursor:
-            cursor.execute("SELECT 1")
-        checks["database"] = "ok"
-    except Exception as exc:  # noqa: BLE001 — health check must not raise
-        checks["database"] = f"error: {exc}"
-        healthy = False
-
-    try:
-        cache.set("healthz", "1", timeout=5)
-        checks["cache"] = "ok" if cache.get("healthz") == "1" else "error: read-back mismatch"
-        if checks["cache"] != "ok":
-            healthy = False
-    except Exception as exc:  # noqa: BLE001
-        checks["cache"] = f"error: {exc}"
-        healthy = False
-
-    try:
-        import redis as redis_lib
-        from django.conf import settings
-
-        broker_client = redis_lib.from_url(settings.CELERY_BROKER_URL, socket_connect_timeout=2)
-        broker_client.ping()
-        checks["celery_broker"] = "ok"
-    except Exception as exc:  # noqa: BLE001
-        checks["celery_broker"] = f"error: {exc}"
-        healthy = False
-
+    healthy, checks = run_health_checks()
     return JsonResponse(
         {"status": "ok" if healthy else "unhealthy", "checks": checks},
         status=200 if healthy else 503,

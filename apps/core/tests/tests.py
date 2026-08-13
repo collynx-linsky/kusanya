@@ -93,3 +93,64 @@ def test_correlation_id_is_echoed_on_response(client):
 def test_correlation_id_is_generated_when_absent(client):
     response = client.get(reverse("core:health-check"))
     assert response["X-Correlation-ID"]  # non-empty, server-generated
+
+
+@pytest.mark.django_db
+class TestSystemHealthMonitorTask:
+    """apps.core.tasks.monitor_system_health — the active half of
+    monitoring alongside the passive /healthz/ endpoint above."""
+
+    def test_sends_no_alert_when_everything_is_healthy(self, mailoutbox, settings):
+        from apps.core.tasks import monitor_system_health
+
+        settings.ADMINS = [("Ops", "ops@example.com")]
+        result = monitor_system_health.run()
+
+        assert result["healthy"] is True
+        assert len(mailoutbox) == 0
+
+    def test_alerts_admins_when_a_dependency_check_fails(self, mailoutbox, settings, monkeypatch):
+        from apps.core import tasks as tasks_module
+
+        settings.ADMINS = [("Ops", "ops@example.com")]
+        monkeypatch.setattr(
+            tasks_module,
+            "run_health_checks",
+            lambda: (False, {"database": "error: simulated outage"}),
+        )
+
+        result = tasks_module.monitor_system_health.run()
+
+        assert result["healthy"] is False
+        assert len(mailoutbox) == 1
+        assert "health check failed" in mailoutbox[0].subject
+        assert "database" in mailoutbox[0].body
+        assert "ops@example.com" in mailoutbox[0].to
+
+    def test_no_admins_configured_is_a_safe_no_op(self, mailoutbox, settings, monkeypatch):
+        """mail_admins() with an empty ADMINS list is a documented Django
+        no-op — confirms that behavior explicitly rather than assuming it,
+        since a raised exception here would be a task failure, not just a
+        missed alert."""
+        from apps.core import tasks as tasks_module
+
+        settings.ADMINS = []
+        monkeypatch.setattr(
+            tasks_module,
+            "run_health_checks",
+            lambda: (False, {"database": "error: simulated outage"}),
+        )
+
+        result = tasks_module.monitor_system_health.run()
+
+        assert result["healthy"] is False
+        assert len(mailoutbox) == 0
+
+
+@pytest.mark.django_db
+def test_health_monitor_periodic_task_is_seeded_by_migration():
+    from django_celery_beat.models import PeriodicTask
+
+    task = PeriodicTask.objects.get(name="Monitor system health")
+    assert task.task == "apps.core.tasks.monitor_system_health"
+    assert task.enabled is True
