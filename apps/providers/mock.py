@@ -34,7 +34,8 @@ from apps.providers.base import (
 )
 from apps.providers.models import MockProviderTransaction
 
-DEFAULT_CALLBACK_SECRET = "mock-provider-callback-secret"  # sandbox only — never a real secret
+# Sandbox-only mock provider fixture, never a real credential.
+DEFAULT_CALLBACK_SECRET = "mock-provider-callback-secret"  # nosec B105
 
 
 class MockPaymentProviderAdapter(PaymentProviderAdapter):

@@ -73,6 +73,15 @@ jobs:
       - name: Run tests
         run: python -m pytest -v
 
+      - name: Static analysis of application code (Bandit)
+        # Blocks the build on any finding — unlike the dependency scan
+        # below, this looks at code KUSANYA itself wrote, where "we
+        # can't do anything about it yet" isn't a valid excuse. Known
+        # false positives are suppressed inline with a justified
+        # `# nosec <code>` comment, reviewed in code review — not
+        # blanket-ignored here. See ARCHITECTURE_DECISIONS ADR-029.
+        run: bandit -c pyproject.toml -r apps config
+
       - name: Dependency vulnerability scan
         # Informational only (never fails the build) — see
         # ARCHITECTURE_DECISIONS ADR-026 for why a new CVE disclosure in

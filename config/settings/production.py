@@ -11,7 +11,8 @@ from .base import env
 DEBUG = False
 
 SECRET_KEY = env("DJANGO_SECRET_KEY")  # no default — must be set
-if SECRET_KEY == "insecure-dev-key-change-me":
+# Guard comparison against the known-insecure default, not a stored credential.
+if SECRET_KEY == "insecure-dev-key-change-me":  # nosec B105
     raise RuntimeError("DJANGO_SECRET_KEY must be set explicitly in production.")
 
 ALLOWED_HOSTS = env.list("DJANGO_ALLOWED_HOSTS")  # no default — must be set

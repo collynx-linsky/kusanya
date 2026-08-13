@@ -32,7 +32,16 @@ def generate_value() -> str:
     IntegrityError on insert (see get_or_create_for_bill/_account below).
     """
     prefix = timezone.now().strftime("%y%m%d")
-    suffix = f"{random.randint(0, 999_999):06d}"
+    # `random`, not `secrets` — deliberate. A control number is a payment
+    # *reference*, given out to whoever needs to pay a bill (a payer, a
+    # bank teller, a mobile money USSD flow), the same way an invoice
+    # number is — it is not a secret/credential, and unpredictability
+    # buys no security property here: knowing one only lets you pay
+    # someone else's bill, which the platform wants to allow, not
+    # prevent. Global uniqueness (the actual correctness requirement) is
+    # enforced at the database level, not by the generator. See
+    # ARCHITECTURE_DECISIONS ADR-029.
+    suffix = f"{random.randint(0, 999_999):06d}"  # nosec B311
     return f"{prefix}{suffix}"
 
 

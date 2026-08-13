@@ -9,7 +9,8 @@ from .base import *  # noqa: F401,F403
 from .base import env
 
 DEBUG = False
-SECRET_KEY = "test-secret-key-not-for-production"
+# Test-only settings module, structurally unreachable from production.py.
+SECRET_KEY = "test-secret-key-not-for-production"  # nosec B105
 
 # Password hashing is intentionally weakened only for test speed.
 PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]

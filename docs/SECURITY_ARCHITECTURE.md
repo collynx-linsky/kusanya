@@ -66,8 +66,10 @@ overstating any of these would be its own security problem.
   user for MFA code entry.
 - **CI pipeline** — GitHub Actions (`.github/workflows/ci.yml`) runs on
   every push/PR: `manage.py check`, `check --deploy` against production
-  settings, migrations, the full pytest suite, and an informational
-  `pip-audit` pass (see ADR-026 for why it doesn't fail the build).
+  settings, migrations, the full pytest suite, static analysis of
+  KUSANYA's own code (Bandit, blocking — see ADR-029), and an
+  informational `pip-audit` dependency scan (see ADR-026 for why *that*
+  doesn't fail the build — a deliberately different posture from Bandit).
 - **Structured JSON logging** — production-only
   (`apps.core.logging.JsonFormatter`), one JSON object per line, carries
   the existing correlation ID.
@@ -96,9 +98,6 @@ overstating any of these would be its own security problem.
   throttling (Phase 6, `apps.api.throttling`) and login/MFA now has
   brute-force lockout (Phase 7), but ordinary authenticated web views have
   no general request-rate limiting.
-- **SAST (static application security testing)** — CI runs `pip-audit`
-  (dependency vulnerabilities only, informational); no static analysis of
-  KUSANYA's own code (e.g. Bandit) runs yet.
 - **Monitoring/alerting, intrusion detection** — `apps.core.views.health_check`
   is a real liveness/readiness probe (database, cache, and Celery broker,
   Phase 7), but nothing is actually polling it, and there's no alerting,

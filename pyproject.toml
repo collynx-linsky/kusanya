@@ -1,0 +1,10 @@
+[tool.bandit]
+# Static analysis of KUSANYA's own code (config/apps), not third-party
+# dependencies (see requirements' pip-audit in CI for that) or generated
+# code. Migrations are Django-generated schema, not hand-written logic;
+# tests intentionally use patterns (fixed test secrets, predictable
+# fixtures) that would be findings in application code but aren't here.
+# See ARCHITECTURE_DECISIONS ADR-029 for why this blocks CI (unlike
+# pip-audit's informational-only stance, ADR-026) and the per-line
+# `# nosec` suppressions already reviewed and justified in the code.
+exclude_dirs = ["migrations", "tests", "venv", ".venv"]

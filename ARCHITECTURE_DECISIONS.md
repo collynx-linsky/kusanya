@@ -816,3 +816,41 @@ flows into it, so it's rendered with `|safe` without reopening an XSS
 question. Manual entry remains available (now behind a disclosure,
 de-emphasized rather than removed) for authenticator apps or situations
 that can't scan a camera.
+
+## ADR-029: Bandit runs in CI against KUSANYA's own code and blocks the build — a different posture from ADR-026's `pip-audit`
+
+**Decision:** `bandit -c pyproject.toml -r apps config` runs in CI
+(`.github/workflows/ci.yml`) with no `|| true` — a finding fails the
+build. `pyproject.toml`'s `[tool.bandit]` section excludes
+`migrations/`, `tests/`, and the virtualenv from scanning. A first run
+found 4 low-severity findings, all reviewed individually and suppressed
+inline with a justified `# nosec <code>` comment (not a blanket
+config-level ignore): a `random.randint` used for a control number's
+non-secret suffix (`apps/control_numbers/services.py` — see that
+function's docstring for why unpredictability isn't actually the
+security property a control number needs), and three "possible hardcoded
+password" false positives that are actually a sandbox-only mock
+provider fixture, a sentinel comparison against a known-insecure
+default, and a test-only settings constant.
+
+**Reason:** ADR-026 made `pip-audit` (third-party dependency CVEs)
+informational-only, because a new disclosure in code KUSANYA doesn't
+control and often can't immediately fix shouldn't block every unrelated
+PR. That reasoning doesn't transfer to Bandit: every finding here is in
+code this project wrote and can fix immediately. "We can't do anything
+about it yet" isn't available as an excuse for our own code the way it
+legitimately is for a transitive dependency's CVE. A tool that never
+blocks anything trains people to stop reading its output — the whole
+point of adding static analysis is for a real finding to actually stop
+something.
+
+**Consequences:** A new, non-suppressed Bandit finding blocks CI, same
+as a failing test. Suppressing a real finding requires a `# nosec`
+comment at the exact line, with a reason — which means every suppression
+is visible in a diff and in code review, not hidden in a config
+allowlist a reviewer would have to go look up separately. New apps
+should expect to be scanned by default (nothing app-specific is
+excluded, only migrations/tests) — a genuinely risky pattern introduced
+later (e.g. real string-built SQL, `eval`, a hardcoded real-looking
+secret) will fail CI the same way this first run's false positives did,
+which is the intended behavior.
