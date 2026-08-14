@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block title %}{% trans "New institution" %}{% endblock %}
+{% block breadcrumb %}
+<a href="{% url 'tenants:pending-tenants' %}">{% trans "Pending institutions" %}</a>
+<i class="bi bi-chevron-right small"></i>
+<span class="text-body">{% trans "New institution" %}</span>
+{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-12 col-lg-7">
+        <div class="kz-card">
+            <div class="kz-card-body p-4">
+                <h1 class="h4 mb-1">{% trans "Register a new institution" %}</h1>
+                <p class="text-body-secondary">
+                    {% blocktrans trimmed %}Creates the institution and its first admin account directly,
+                    already active -- no separate approval step, since you're
+                    the approver. Give the sign-in email and password you set
+                    to that admin yourself; KUSANYA doesn't email
+                    credentials.{% endblocktrans %}
+                </p>
+                {% if form.non_field_errors %}
+                    <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+                {% endif %}
+                <form method="post" novalidate>
+                    {% csrf_token %}
+                    <h2 class="h6 text-uppercase text-body-secondary mt-4">{% trans "Institution" %}</h2>
+                    {% for field in form %}
+                        {% if field.name in "institution_name,sector,contact_email,contact_phone" %}
+                        <div class="mb-3">
+                            <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                            {{ field }}
+                            {% for error in field.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+                        </div>
+                        {% endif %}
+                    {% endfor %}
+
+                    <h2 class="h6 text-uppercase text-body-secondary mt-4">{% trans "Its admin account" %}</h2>
+                    {% for field in form %}
+                        {% if field.name in "admin_first_name,admin_last_name,admin_email,admin_password" %}
+                        <div class="mb-3">
+                            <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                            {{ field }}
+                            {% for error in field.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+                        </div>
+                        {% endif %}
+                    {% endfor %}
+
+                    <div class="d-flex gap-2 mt-4">
+                        <button type="submit" class="btn btn-primary">{% trans "Create institution" %}</button>
+                        <a class="btn btn-outline-secondary" href="{% url 'tenants:pending-tenants' %}">{% trans "Cancel" %}</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

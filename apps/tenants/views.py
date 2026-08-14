@@ -115,6 +115,63 @@ def pending_tenants(request):
 
 @login_required
 @require_platform_role(PlatformRole.SUPER_ADMIN, PlatformRole.OPERATIONS_ADMIN)
+def platform_create_tenant(request):
+    """Journey B: a platform administrator registers an institution
+    directly (e.g. onboarding a customer over the phone, or a pilot
+    partner that shouldn't sit in the public queue) — the in-app
+    alternative to reaching for Django admin. Reuses the exact same
+    form and creation logic as the public self-service path
+    (`onboard`, above), with two differences: the tenant is created
+    already ACTIVE rather than PENDING (a platform admin creating it
+    themselves *is* the approval), and the audit trail records who did
+    it (`tenant.created_by_platform`, distinct from the self-service
+    `tenant.registered` event) so "who let this tenant in" always has a
+    real, honest answer either way.
+    """
+    if request.method == "POST":
+        form = TenantOnboardingForm(request.POST)
+        if form.is_valid():
+            data = form.cleaned_data
+            with transaction.atomic():
+                user = User.objects.create_user(
+                    email=data["admin_email"],
+                    password=data["admin_password"],
+                    first_name=data["admin_first_name"],
+                    last_name=data["admin_last_name"],
+                )
+                tenant = Tenant.objects.create(
+                    name=data["institution_name"],
+                    sector=data["sector"],
+                    contact_email=data["contact_email"],
+                    contact_phone=data["contact_phone"],
+                    status=Tenant.Status.ACTIVE,
+                    approved_at=timezone.now(),
+                    approved_by=request.user,
+                )
+                TenantMembership.objects.create(
+                    tenant=tenant, user=user, role=TenantRole.ADMIN
+                )
+                record_audit_event(
+                    actor=request.user,
+                    tenant=tenant,
+                    action="tenant.created_by_platform",
+                    target=tenant,
+                    metadata={"sector": tenant.sector, "admin_email": user.email},
+                )
+            messages.success(
+                request,
+                f"{tenant.name} created and activated. Share the sign-in email "
+                f"and password you set with {user.email} directly.",
+            )
+            return redirect("tenants:pending-tenants")
+    else:
+        form = TenantOnboardingForm()
+
+    return render(request, "tenants/platform_create.html", {"form": form})
+
+
+@login_required
+@require_platform_role(PlatformRole.SUPER_ADMIN, PlatformRole.OPERATIONS_ADMIN)
 def approve_tenant(request, pk):
     tenant = get_object_or_404(Tenant, pk=pk)
     if request.method == "POST":

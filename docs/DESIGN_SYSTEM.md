@@ -315,6 +315,25 @@ remove one from active use, from the portal at all) to full CRUD:
   even though it isn't itself a financial-event model. Both actions are
   confirmed via a modal (see "Modals" above) before anything happens.
 
+## Tenant onboarding
+
+Two paths into the system, both real and both validated the same way
+(`apps.tenants.forms.TenantOnboardingForm`, shared between them):
+**Journey A**, self-service (`/register/`, public, no login) — creates
+a `PENDING` tenant that needs a platform admin's approval
+("Pending institutions" in the sidebar) before it's usable. **Journey
+B**, platform-admin-direct (`/platform/tenants/create/`, staff-only,
+"New institution" in the sidebar and on the pending-institutions page)
+— same form, same validation, but the tenant is created already
+`ACTIVE` since a platform admin creating it themselves *is* the
+approval, and the audit event (`tenant.created_by_platform`) says so
+explicitly rather than looking identical to a self-service signup.
+Before this, the only way for a platform admin to get an institution in
+without going through the public form was Django admin — which has no
+domain validation (no duplicate-name check, no atomic
+tenant+user+membership creation) — so Journey B closes a real gap, not
+just adds a shortcut. See ARCHITECTURE_DECISIONS ADR-041.
+
 ## Command palette
 
 Ctrl/Cmd+K (or clicking the "Search…" button in the top bar) opens a

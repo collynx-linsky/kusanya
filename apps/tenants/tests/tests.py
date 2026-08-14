@@ -205,3 +205,76 @@ class TestTenantOnboarding:
         tenant.refresh_from_db()
         assert tenant.status == Tenant.Status.ACTIVE
         assert tenant.approved_by == admin
+
+    def test_non_staff_cannot_reach_platform_create(self, client, make_user):
+        non_staff = make_user(email="notstaff@example.com")
+        client.force_login(non_staff)
+        response = client.post(
+            reverse("tenants:platform-create-tenant"),
+            {
+                "institution_name": "Should Not Exist",
+                "sector": "healthcare",
+                "contact_email": "ops@shouldnotexist.example",
+                "contact_phone": "",
+                "admin_first_name": "Nope",
+                "admin_last_name": "Nope",
+                "admin_email": "nope@shouldnotexist.example",
+                "admin_password": "SuperSecurePass123!",
+            },
+        )
+        assert response.status_code == 403
+        assert not Tenant.objects.filter(name="Should Not Exist").exists()
+
+    def test_platform_admin_can_create_an_already_active_tenant(
+        self, client, make_user, make_platform_role
+    ):
+        from apps.audit.models import AuditLog
+
+        admin = make_user(email="creator@example.com", is_staff=True)
+        make_platform_role(admin, PlatformRole.SUPER_ADMIN)
+        client.force_login(admin)
+
+        response = client.post(
+            reverse("tenants:platform-create-tenant"),
+            {
+                "institution_name": "Directly Created School",
+                "sector": "education",
+                "contact_email": "ops@directlycreated.example",
+                "contact_phone": "",
+                "admin_first_name": "Grace",
+                "admin_last_name": "Mwangi",
+                "admin_email": "grace@directlycreated.example",
+                "admin_password": "SuperSecurePass123!",
+            },
+        )
+        assert response.status_code == 302
+
+        tenant = Tenant.objects.get(name="Directly Created School")
+        assert tenant.status == Tenant.Status.ACTIVE
+        assert tenant.approved_by == admin
+        assert tenant.memberships.filter(role=TenantRole.ADMIN).exists()
+        assert AuditLog.objects.filter(action="tenant.created_by_platform").exists()
+
+    def test_platform_create_form_rejects_a_duplicate_institution_name(
+        self, client, make_user, make_tenant, make_platform_role
+    ):
+        admin = make_user(email="creator2@example.com", is_staff=True)
+        make_platform_role(admin, PlatformRole.SUPER_ADMIN)
+        make_tenant(name="Already Exists Ltd")
+        client.force_login(admin)
+
+        response = client.post(
+            reverse("tenants:platform-create-tenant"),
+            {
+                "institution_name": "Already Exists Ltd",
+                "sector": "healthcare",
+                "contact_email": "ops@dup.example",
+                "contact_phone": "",
+                "admin_first_name": "Dup",
+                "admin_last_name": "Licate",
+                "admin_email": "dup@dup.example",
+                "admin_password": "SuperSecurePass123!",
+            },
+        )
+        assert response.status_code == 200  # re-renders the form with the error
+        assert "already registered" in response.content.decode()

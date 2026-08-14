@@ -9,9 +9,11 @@
 # from the {% trans %}/{% blocktrans %} tags actually present in the
 # templates it covers (templates/base.html, base_auth.html,
 # partials/sidebar.html, partials/topbar.html,
-# partials/language_switcher.html, and every page that extends
+# partials/language_switcher.html, every page that extends
 # base_auth.html -- accounts/login.html, accounts/mfa_verify.html,
-# tenants/onboarding.html) -- not guessed or invented. Form field
+# tenants/onboarding.html -- and tenants/platform_create.html +
+# tenants/pending_list.html's new-institution button) -- not guessed
+# or invented. Form field
 # labels (e.g. the onboarding form's per-field labels, which come from
 # apps.tenants.forms rather than a template) are a known, separate gap
 # -- not covered here. Compiled to the real .mo Django reads via
@@ -56,11 +58,20 @@ msgstr "Bili"
 msgid "Breadcrumb"
 msgstr "Njia ya kurasa"
 
+msgid "Cancel"
+msgstr "Ghairi"
+
 msgid "Collections"
 msgstr "Ukusanyaji"
 
 msgid "Control numbers"
 msgstr "Namba za udhibiti"
+
+msgid "Create institution"
+msgstr "Unda taasisi"
+
+msgid "Creates the institution and its first admin account directly, already active -- no separate approval step, since you're the approver. Give the sign-in email and password you set to that admin yourself; KUSANYA doesn't email credentials."
+msgstr "Inaunda taasisi na akaunti yake ya kwanza ya msimamizi moja kwa moja, tayari hai -- hakuna hatua tofauti ya idhini, kwa kuwa wewe ndiye mwenye kuidhinisha. Mpe msimamizi huyo barua pepe na nenosiri la kuingia ulilotumia mwenyewe; KUSANYA haitumi vitambulisho kwa barua pepe."
 
 msgid "Customers"
 msgstr "Wateja"
@@ -92,6 +103,9 @@ msgstr "Kutoka kwenye programu yako ya uthibitishaji, au moja ya misimbo yako ya
 msgid "Institution"
 msgstr "Taasisi"
 
+msgid "Its admin account"
+msgstr "Akaunti yake ya msimamizi"
+
 msgid "Language"
 msgstr "Lugha"
 
@@ -103,6 +117,9 @@ msgstr "Mwanga"
 
 msgid "Match system"
 msgstr "Fuata mfumo"
+
+msgid "New institution"
+msgstr "Taasisi mpya"
 
 msgid "New institution? <a href=\"%(onboard_url)s\">Register here</a>."
 msgstr "Taasisi mpya? <a href=\"%(onboard_url)s\">Jisajili hapa</a>."
@@ -139,6 +156,9 @@ msgstr "Risiti"
 
 msgid "Reconciliation"
 msgstr "Upatanisho"
+
+msgid "Register a new institution"
+msgstr "Sajili taasisi mpya"
 
 msgid "Register institution"
 msgstr "Sajili taasisi"

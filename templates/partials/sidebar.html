@@ -102,6 +102,10 @@
                     <span class="kz-nav-icon"><i class="bi bi-building-add"></i></span>
                     {% trans 'Pending institutions' %}
                 </a>
+                <a class="kz-nav-link" href="{% url 'tenants:platform-create-tenant' %}">
+                    <span class="kz-nav-icon"><i class="bi bi-plus-square"></i></span>
+                    {% trans 'New institution' %}
+                </a>
                 <a class="kz-nav-link" href="{% url 'revenue:platform-dashboard' %}">
                     <span class="kz-nav-icon"><i class="bi bi-cash-stack"></i></span>
                     {% trans 'Platform revenue' %}

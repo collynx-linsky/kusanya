@@ -1503,3 +1503,46 @@ growing with row count. Dark mode's live browser toggle, mobile
 breakpoint rendering, and the print stylesheet's visual output still
 depend on an actual browser rather than `curl` and remain manual/visual
 checks, not run this session.
+
+## ADR-041: Platform admins can register an institution directly in-app (Journey B), alongside the existing self-service queue
+
+**Decision:** A new view, `apps.tenants.views.platform_create_tenant`
+(`POST /platform/tenants/create/`, gated
+`@require_platform_role(SUPER_ADMIN, OPERATIONS_ADMIN)`), reuses the
+exact same `TenantOnboardingForm` and tenant/user/membership creation
+logic as the public self-service registration (`onboard`, Journey A),
+with two differences: the tenant is created already `ACTIVE` (with
+`approved_by`/`approved_at` set to the platform admin who created it)
+rather than `PENDING`, and the audit event is `tenant.created_by_platform`
+— distinct from self-service's `tenant.registered` — so the audit trail
+always has an honest answer for "who let this tenant in and how."
+Linked from the sidebar's "Platform admin" section and a "New
+institution" button on the pending-institutions page.
+
+**Reason:** Before this, a platform administrator logged into the app
+had exactly one way to get an institution into the system that didn't
+go through the public self-service form: Django admin
+(`/admin/`), manually creating a `Tenant`, a `User`, and a
+`TenantMembership` by hand across three separate admin screens with no
+domain validation (nothing stops a Django-admin-created tenant from
+having a duplicate name, for instance — the real duplicate-name check
+lives in `TenantOnboardingForm.clean_institution_name`, not in the
+model). That's a genuine capability gap for legitimate cases (onboarding
+a partner over the phone, a pilot institution that shouldn't sit in the
+public approval queue) — the fix is a real in-app path with the same
+validation and audit trail as every other tenant-creation path, not a
+workaround.
+
+**Consequences:** 4 new tests
+(`apps/tenants/tests/tests.py::TestTenantOnboarding`) covering: a
+non-staff user gets 403 and creates nothing; a platform admin's
+submission produces an already-`ACTIVE` tenant with the right
+`approved_by` and a `tenant.created_by_platform` audit row; and the
+duplicate-name validation (shared with the public form) still applies.
+Live-verified end to end against the real dev server as `admin@kusanya.local`:
+submitted the form for a real institution, confirmed it was `ACTIVE`
+with a real audit row immediately (no separate approval action), and
+logged in as that institution's brand-new admin account in the same
+session — no Django admin step anywhere in the path. `docs/DESIGN_SYSTEM.md`
+gained a short note under a new "Tenant onboarding" mention alongside
+the existing Command palette/CRUD sections.
