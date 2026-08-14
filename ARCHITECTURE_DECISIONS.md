@@ -1592,16 +1592,57 @@ spare), `--kz-brand-700` measures 6.96:1 against `--kz-brand-100` (the
 avatar chip's text-on-bg pairing), and the sidebar's existing
 `gray-300`/`gray-400` text tokens measure 11.05:1/6.4:1 against the new
 `--kz-brand-950` background — all comfortably clear AA against the
-darker surface too. Because every component already read tokens rather
-than hardcoding color (the design-tokens.css file's own stated
-invariant), the whole app repaints from roughly a dozen lines of token
-values — no template or component file needed color edits, with one
-exception: `templates/500.html` is a deliberately static,
+darker surface too. `templates/500.html` is a deliberately static,
 context-processor-free error page (must render standalone during an
 infrastructure outage) and hardcodes its own copy of the accent color,
-updated by hand to match. Paired with a small, separate button-polish
-pass in the same session: `.btn` gets Bootstrap's default weight-400
-bumped to 600 (reads as more confident/authoritative, matching the
+updated by hand to match.
+
+**Follow-up finding (same day) — the initial token-only change was
+incomplete:** the user reported that after the rebrand, "changes
+happened only on sidebars." Investigation (fetching Bootstrap 5.3.3's
+actual compiled CDN CSS and grepping the relevant selectors, not
+guessing) found that `design-tokens.css`'s original assumption —
+"every unmodified Bootstrap component reads `--bs-primary` live" — was
+wrong for most of them. Bootstrap 5.3's CDN build Sass-compiles most
+component colors as *literal hex values baked into each component's
+own scoped custom properties* at build time: `.btn-primary`'s own
+`--bs-btn-bg` is a hardcoded `#0d6efd`, never a reference to
+`var(--bs-primary)`; same for `.btn-outline-primary`,
+`.form-control:focus`'s border/box-shadow, `.form-check-input:checked`,
+`.dropdown-menu`'s active-item background, and `.pagination`'s active
+state — all hardcoded, all silently ignoring the root override the
+whole time. Only a smaller set of utility classes (`.text-bg-primary`,
+`.text-primary`, `.bg-primary`, `.border-primary`, the `.focus-ring`
+utility) genuinely read `--bs-primary`/`--bs-primary-rgb` live — which
+is exactly why the sidebar (KUSANYA's own CSS, always token-driven)
+repainted correctly while buttons, form focus rings, checkboxes,
+and dropdown/pagination active states did not. This was a
+pre-existing gap, not something this rebrand introduced — the
+*original* indigo was equally never actually reaching those
+components; nobody had previously changed `--bs-primary` and looked
+closely enough to notice buttons were stock Bootstrap blue the whole
+time. Recompiling Bootstrap's Sass with a custom `$primary` would fix
+this at the source but reintroduces the build step ADR-033
+deliberately avoided, so `design-tokens.css` instead gained an
+explicit override block re-declaring the specific custom properties
+(and, for `.form-control:focus`/`.form-check-input:checked`, the
+literal `border-color`/`box-shadow`/`background-color` — these don't
+even use custom properties) for every component actually used in the
+app: `.btn-primary`, `.btn-outline-primary`, `.form-control:focus`,
+`.form-select:focus`, `.form-check-input:checked`/`:focus`,
+`.dropdown-menu`, `.pagination`. `--bs-link-color-rgb` and
+`--bs-link-hover-color-rgb` (the RGB companions plain `<a>` tags
+actually read, distinct from the hex-only `--bs-link-color` that was
+already being set) and `--bs-focus-ring-color` were also added to the
+root feed, since they'd been missing outright. Re-verified via a fresh
+`curl` of the served stylesheet (confirmed all the new overrides are
+present) and the full 251-test suite (still passing — a pure-CSS
+change). Actual browser rendering remains the one check that needs a
+human, not `curl`.
+
+Paired with a small, separate button-polish pass in the same session:
+`.btn` gets Bootstrap's default weight-400 bumped to 600 (reads as
+more confident/authoritative, matching the
 sidebar nav links which were already 500), and `.btn-primary`/`.btn-success`/`.btn-danger`
 get a 1px hover lift with a token-driven shadow, disabled under
 `prefers-reduced-motion`. Verified via `manage.py check`, the full

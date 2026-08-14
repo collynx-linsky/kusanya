@@ -111,10 +111,12 @@ parallel stylesheet. See docs/DESIGN_SYSTEM.md.
   --kz-sidebar-width-collapsed: 4.25rem;
   --kz-topbar-height: 3.5rem;
 
-  /* --- Feed the same tokens into Bootstrap's own variables, so every
-     unmodified Bootstrap component (buttons, alerts, badges, etc.)
-     picks up the KUSANYA palette automatically instead of stock
-     Bootstrap blue. ------------------------------------------------- */
+  /* --- Feed the same tokens into Bootstrap's own root variables. This
+     covers the *smaller* set of Bootstrap 5.3 components that
+     genuinely read their color live from --bs-primary/--bs-primary-rgb
+     at request time (.text-bg-primary, .text-primary, .bg-primary,
+     .border-primary, the .focus-ring utility) -- see the much bigger
+     override block below this one for everything else. ------------- */
   --bs-primary: var(--kz-brand-600);
   --bs-primary-rgb: 31, 110, 74;
   --bs-body-font-family: var(--kz-font-sans);
@@ -123,12 +125,89 @@ parallel stylesheet. See docs/DESIGN_SYSTEM.md.
   --bs-border-radius-sm: var(--kz-radius-sm);
   --bs-border-radius-lg: var(--kz-radius-lg);
   --bs-link-color: var(--kz-brand-600);
+  --bs-link-color-rgb: 31, 110, 74;
   --bs-link-hover-color: var(--kz-brand-700);
+  --bs-link-hover-color-rgb: 23, 89, 57;
+  --bs-focus-ring-color: rgba(31, 110, 74, 0.25);
+}
+
+/* ---------------------------------------------------------------------
+   Bootstrap 5.3's CDN build compiles most component colors as literal
+   hex values baked into each component's OWN scoped custom properties
+   at Sass build time (e.g. .btn-primary's own --bs-btn-bg:#0d6efd) --
+   they do NOT read --bs-primary live the way the utility classes above
+   do. This was true of the original indigo palette too: buttons, form
+   focus rings, checkboxes, dropdown/pagination active states were
+   *always* stock Bootstrap blue, silently disconnected from the brand
+   token the whole time -- discovered when the Harvest rebrand visibly
+   changed the sidebar (KUSANYA's own CSS, correctly token-driven) but
+   nothing else. Recompiling Bootstrap's Sass with our own $primary
+   would fix this at the source, but reintroduces the build step
+   ADR-033 deliberately avoided -- so instead, every component actually
+   used in the app that hardcodes brand color gets its own explicit
+   override here, the standard way to reskin a CDN Bootstrap build.
+   --------------------------------------------------------------------- */
+.btn-primary {
+  --bs-btn-color: #fff;
+  --bs-btn-bg: var(--kz-brand-600);
+  --bs-btn-border-color: var(--kz-brand-600);
+  --bs-btn-hover-color: #fff;
+  --bs-btn-hover-bg: var(--kz-brand-700);
+  --bs-btn-hover-border-color: var(--kz-brand-700);
+  --bs-btn-focus-shadow-rgb: var(--bs-primary-rgb);
+  --bs-btn-active-color: #fff;
+  --bs-btn-active-bg: var(--kz-brand-800);
+  --bs-btn-active-border-color: var(--kz-brand-800);
+  --bs-btn-disabled-color: #fff;
+  --bs-btn-disabled-bg: var(--kz-brand-600);
+  --bs-btn-disabled-border-color: var(--kz-brand-600);
+}
+
+.btn-outline-primary {
+  --bs-btn-color: var(--kz-brand-600);
+  --bs-btn-border-color: var(--kz-brand-600);
+  --bs-btn-hover-color: #fff;
+  --bs-btn-hover-bg: var(--kz-brand-600);
+  --bs-btn-hover-border-color: var(--kz-brand-600);
+  --bs-btn-focus-shadow-rgb: var(--bs-primary-rgb);
+  --bs-btn-active-color: #fff;
+  --bs-btn-active-bg: var(--kz-brand-600);
+  --bs-btn-active-border-color: var(--kz-brand-600);
+  --bs-btn-disabled-color: var(--kz-brand-600);
+  --bs-btn-disabled-border-color: var(--kz-brand-600);
+}
+
+.form-control:focus,
+.form-select:focus {
+  border-color: var(--kz-brand-400);
+  box-shadow: 0 0 0 0.25rem rgba(var(--bs-primary-rgb), 0.25);
+}
+
+.form-check-input:checked {
+  background-color: var(--kz-brand-600);
+  border-color: var(--kz-brand-600);
+}
+
+.form-check-input:focus {
+  border-color: var(--kz-brand-400);
+  box-shadow: 0 0 0 0.25rem rgba(var(--bs-primary-rgb), 0.25);
+}
+
+.dropdown-menu {
+  --bs-dropdown-link-active-bg: var(--kz-brand-600);
+}
+
+.pagination {
+  --bs-pagination-active-bg: var(--kz-brand-600);
+  --bs-pagination-active-border-color: var(--kz-brand-600);
+  --bs-pagination-focus-color: var(--kz-brand-700);
+  --bs-pagination-hover-color: var(--kz-brand-700);
+  --bs-pagination-focus-box-shadow: 0 0 0 0.25rem rgba(var(--bs-primary-rgb), 0.25);
 }
 
 /* Dark mode: token values swap, nothing else does. Both the explicit
-   toggle (data-bs-theme="dark", if/when a toggle is added — P3 item 26)
-   and the system default apply the same values; see
+   toggle (data-bs-theme="dark", topbar.html's theme dropdown, P3 item
+   2) and the system-preference default apply the same values; see
    ARCHITECTURE_DECISIONS ADR-033 for why this file, not a second
    stylesheet, is the single source of truth for both. */
 [data-bs-theme="dark"] {
