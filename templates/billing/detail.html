@@ -118,11 +118,12 @@
         <a href="{% url 'payments:pay-bill' bill.pk %}" class="btn btn-success w-100 mt-3">Pay this bill</a>
         {% endif %}
 
-        {% if bill.payment_allocations.exists %}
+        {% with allocations=bill.payment_allocations.all %}
+        {% if allocations %}
         <div class="kz-card mt-3">
             <div class="kz-card-header"><h2>Payments</h2></div>
             <ul class="list-group list-group-flush">
-                {% for allocation in bill.payment_allocations.all %}
+                {% for allocation in allocations %}
                 <li class="list-group-item d-flex justify-content-between">
                     <a href="{% url 'payments:detail' allocation.payment.pk %}">{{ allocation.payment.merchant_reference }}</a>
                     <span>{{ allocation.amount }} {{ bill.currency }}</span>
@@ -131,6 +132,7 @@
             </ul>
         </div>
         {% endif %}
+        {% endwith %}
     </div>
 </div>
 {% endblock %}

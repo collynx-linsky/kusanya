@@ -67,7 +67,7 @@
                         <td><a href="{% url 'customers:detail' customer.pk %}">{{ customer.full_name }}</a></td>
                         <td>{{ customer.email|default:"—" }}</td>
                         <td>{{ customer.phone_number|default:"—" }}</td>
-                        <td>{{ customer.accounts.count }}</td>
+                        <td>{{ customer.account_count }}</td>
                         <td class="text-body-secondary">{{ customer.created_at|date:"d M Y" }}</td>
                     </tr>
                     {% endfor %}

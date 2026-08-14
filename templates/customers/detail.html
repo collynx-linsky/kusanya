@@ -109,7 +109,7 @@
                 <tr>
                     <td>{{ account.name }}</td>
                     <td>{{ account.revenue_source|default:"—" }}</td>
-                    <td>{{ account.bills.count }}</td>
+                    <td>{{ account.bill_count }}</td>
                 </tr>
                 {% endfor %}
             </tbody>

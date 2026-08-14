@@ -261,6 +261,32 @@ class TestKusanyaUiTemplateTags:
         assert is_active_ns({"request": _Request()}, "customers") == ""
         assert is_active_ns({}, "customers") == ""
 
+    def test_aria_current_ns_matches_namespace_or_view_name(self):
+        from apps.core.templatetags.kusanya_ui import aria_current_ns
+
+        class _Resolver:
+            app_name = "customers"
+            view_name = "customers:list"
+
+        class _Request:
+            resolver_match = _Resolver()
+
+        assert str(aria_current_ns({"request": _Request()}, "customers")) == 'aria-current="page"'
+        assert str(aria_current_ns({"request": _Request()}, "core:background-jobs")) == ""
+        # matches by exact view_name too, not just namespace -- for links
+        # sharing a namespace with other pages (core:background-jobs vs
+        # core:dashboard-router)
+        assert str(aria_current_ns({"request": _Request()}, "customers:list")) == 'aria-current="page"'
+
+    def test_aria_current_ns_is_safe_with_no_resolver_match(self):
+        from apps.core.templatetags.kusanya_ui import aria_current_ns
+
+        class _Request:
+            resolver_match = None
+
+        assert aria_current_ns({"request": _Request()}, "customers") == ""
+        assert aria_current_ns({}, "customers") == ""
+
     @pytest.mark.parametrize(
         "status,expected",
         [
@@ -303,8 +329,11 @@ class TestTopbarAlertsContextProcessor:
     docs/DESIGN_SYSTEM.md's "Notifications" section."""
 
     def test_no_alerts_when_nothing_needs_attention(self, client, make_user, make_tenant, make_membership):
+        from apps.accounts.models import MFADevice
+
         tenant = make_tenant()
         user = make_user(email="quiet@example.com")
+        MFADevice.objects.create(user=user, confirmed=True)  # isolate this test from the MFA nudge (see below)
         make_membership(user, tenant)
         client.force_login(user)
         session = client.session
@@ -318,11 +347,13 @@ class TestTopbarAlertsContextProcessor:
     def test_open_reconciliation_exception_surfaces_as_a_real_alert(
         self, client, make_user, make_tenant, make_membership, make_bill_with_control_number, mock_provider
     ):
+        from apps.accounts.models import MFADevice
         from apps.payments.models import Payment
         from apps.reconciliation.models import ExceptionStatus, ExceptionType, ReconciliationException
 
         tenant = make_tenant()
         user = make_user(email="ops@example.com")
+        MFADevice.objects.create(user=user, confirmed=True)  # isolate this test from the MFA nudge (see below)
         make_membership(user, tenant)
         client.force_login(user)
         session = client.session
@@ -343,6 +374,37 @@ class TestTopbarAlertsContextProcessor:
         alerts = response.context["topbar_alerts"]
         assert len(alerts) == 1
         assert "1 open reconciliation exception" in alerts[0]["text"]
+
+    def test_mfa_not_enabled_surfaces_as_a_nudge(self, client, make_user, make_tenant, make_membership):
+        tenant = make_tenant()
+        user = make_user(email="no-mfa@example.com")
+        make_membership(user, tenant)
+        client.force_login(user)
+        session = client.session
+        session["active_tenant_id"] = str(tenant.id)
+        session.save()
+
+        response = client.get("/customers/")
+
+        alerts = response.context["topbar_alerts"]
+        assert len(alerts) == 1
+        assert alerts[0]["url_name"] == "accounts:mfa-status"
+
+    def test_mfa_nudge_disappears_once_confirmed(self, client, make_user, make_tenant, make_membership):
+        from apps.accounts.models import MFADevice
+
+        tenant = make_tenant()
+        user = make_user(email="has-mfa@example.com")
+        MFADevice.objects.create(user=user, confirmed=True)
+        make_membership(user, tenant)
+        client.force_login(user)
+        session = client.session
+        session["active_tenant_id"] = str(tenant.id)
+        session.save()
+
+        response = client.get("/customers/")
+
+        assert all(a["url_name"] != "accounts:mfa-status" for a in response.context["topbar_alerts"])
 
     def test_pending_tenant_surfaces_only_for_platform_staff(
         self, client, make_user, make_tenant, make_membership, make_platform_role

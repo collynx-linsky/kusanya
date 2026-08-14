@@ -4,6 +4,85 @@
 
 (function () {
   // ------------------------------------------------------------------
+  // Password visibility toggle (docs/DESIGN_SYSTEM.md's "Security UX"
+  // section). A global enhancement, not per-template markup -- every
+  // `<input type="password">` on the page gets a show/hide button
+  // automatically. Reduces mistyped-password lockouts (this app's own
+  // login throttle, apps.accounts.throttle, locks out after 5 failed
+  // attempts) without weakening anything: the value never leaves the
+  // input, this only toggles how the browser renders it.
+  // ------------------------------------------------------------------
+  document.querySelectorAll('input[type="password"].form-control').forEach(function (input) {
+    if (input.closest(".kz-password-wrap")) return; // already wrapped
+
+    const wrap = document.createElement("div");
+    wrap.className = "input-group kz-password-wrap";
+    input.parentNode.insertBefore(wrap, input);
+    wrap.appendChild(input);
+
+    const toggle = document.createElement("button");
+    toggle.type = "button";
+    toggle.className = "btn btn-outline-secondary";
+    toggle.setAttribute("aria-label", "Show password");
+    toggle.setAttribute("aria-pressed", "false");
+    toggle.innerHTML = '<i class="bi bi-eye"></i>';
+    wrap.appendChild(toggle);
+
+    toggle.addEventListener("click", function () {
+      const showing = input.type === "text";
+      input.type = showing ? "password" : "text";
+      toggle.innerHTML = showing ? '<i class="bi bi-eye"></i>' : '<i class="bi bi-eye-slash"></i>';
+      toggle.setAttribute("aria-label", showing ? "Show password" : "Hide password");
+      toggle.setAttribute("aria-pressed", showing ? "false" : "true");
+    });
+  });
+
+  // ------------------------------------------------------------------
+  // Dark mode (docs/DESIGN_SYSTEM.md's "Dark mode" section). The
+  // no-flash initial resolve happens synchronously in <head> via
+  // partials/theme_init.html; this wires the visible toggle and keeps
+  // it in sync with the live-resolved theme (including "system", which
+  // needs to react to the OS setting changing without a reload).
+  // ------------------------------------------------------------------
+  function resolveTheme(choice) {
+    const systemDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+    return window.KZLogic.resolveTheme(choice, systemDark);
+  }
+
+  function applyTheme(choice) {
+    localStorage.setItem("kzTheme", choice);
+    document.documentElement.setAttribute("data-bs-theme", resolveTheme(choice));
+    updateThemeUi(choice);
+  }
+
+  function updateThemeUi(choice) {
+    const icon = document.getElementById("kzThemeIcon");
+    const iconClass = choice === "dark" ? "bi-moon-stars" : choice === "light" ? "bi-sun" : "bi-circle-half";
+    if (icon) icon.className = "bi " + iconClass + " kz-theme-icon";
+    document.querySelectorAll(".kz-theme-option").forEach(function (btn) {
+      const isActive = btn.getAttribute("data-theme-choice") === choice;
+      btn.querySelector(".kz-theme-check").style.visibility = isActive ? "visible" : "hidden";
+    });
+  }
+
+  document.querySelectorAll(".kz-theme-option").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      applyTheme(btn.getAttribute("data-theme-choice"));
+    });
+  });
+
+  updateThemeUi(localStorage.getItem("kzTheme") || "system");
+
+  if (window.matchMedia) {
+    window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", function () {
+      const stored = localStorage.getItem("kzTheme") || "system";
+      if (stored === "system") {
+        document.documentElement.setAttribute("data-bs-theme", resolveTheme("system"));
+      }
+    });
+  }
+
+  // ------------------------------------------------------------------
   // Responsive sidebar (off-canvas below lg — see kusanya.css)
   // ------------------------------------------------------------------
   const sidebar = document.getElementById("kzSidebar");
@@ -144,11 +223,6 @@
     });
   }
 
-  function isTypingInField(target) {
-    const tag = target && target.tagName;
-    return tag === "INPUT" || tag === "TEXTAREA" || target.isContentEditable;
-  }
-
   document.addEventListener("keydown", function (evt) {
     const mod = isMac ? evt.metaKey : evt.ctrlKey;
 
@@ -158,7 +232,7 @@
       return;
     }
 
-    if (isTypingInField(evt.target)) return; // everything below is only for "not currently typing"
+    if (window.KZLogic.isTypingInField(evt.target)) return; // everything below is only for "not currently typing"
 
     if (evt.key === "/") {
       const searchBox = document.querySelector('input[type="search"]:not(#kzPaletteInput)');

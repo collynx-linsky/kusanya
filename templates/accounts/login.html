@@ -1,29 +1,31 @@
 {% extends "base_auth.html" %}
-{% block title %}Sign in{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "Sign in" %}{% endblock %}
 {% block topbar_actions %}
-<a class="btn btn-sm btn-primary" href="{% url 'tenants:onboard' %}">Register institution</a>
+<a class="btn btn-sm btn-primary" href="{% url 'tenants:onboard' %}">{% trans "Register institution" %}</a>
 {% endblock %}
 {% block content %}
 <div class="kz-form-card mx-auto">
-    <h1 class="h4 mb-3">Sign in</h1>
+    <h1 class="h4 mb-3">{% trans "Sign in" %}</h1>
     <form method="post">
         {% csrf_token %}
         {% if form.non_field_errors %}
             <div class="alert alert-danger">{{ form.non_field_errors }}</div>
         {% endif %}
         <div class="mb-3">
-            <label class="form-label" for="{{ form.username.id_for_label }}">Email</label>
+            <label class="form-label" for="{{ form.username.id_for_label }}">{% trans "Email" %}</label>
             {{ form.username }}
         </div>
         <div class="mb-3">
-            <label class="form-label" for="{{ form.password.id_for_label }}">Password</label>
+            <label class="form-label" for="{{ form.password.id_for_label }}">{% trans "Password" %}</label>
             {{ form.password }}
         </div>
-        <button type="submit" class="btn btn-primary w-100">Sign in</button>
+        <button type="submit" class="btn btn-primary w-100">{% trans "Sign in" %}</button>
     </form>
     <hr>
+    {% url 'tenants:onboard' as onboard_url %}
     <p class="small text-body-secondary mb-0">
-        New institution? <a href="{% url 'tenants:onboard' %}">Register here</a>.
+        {% blocktrans trimmed %}New institution? <a href="{{ onboard_url }}">Register here</a>.{% endblocktrans %}
     </p>
 </div>
 {% endblock %}

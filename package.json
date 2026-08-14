@@ -1,0 +1,15 @@
+{
+  "name": "kusanya-frontend-tests",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Test tooling only. No build step, no bundler -- static/js/*.js is served as-is (see docs/DESIGN_SYSTEM.md's 'HTMX architecture' section on why). This package.json exists solely so Vitest can unit-test the pure logic in static/js/kusanya-logic.js and integration-test static/js/kusanya.js against a simulated DOM.",
+  "type": "commonjs",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "jsdom": "^25.0.1",
+    "vitest": "^2.1.9"
+  }
+}

@@ -1,20 +1,21 @@
+{% load i18n %}
 <header class="kz-topbar">
-    <button type="button" class="btn btn-sm btn-outline-secondary kz-topbar-toggle" id="kzSidebarToggle" aria-label="Toggle navigation" aria-controls="kzSidebar" aria-expanded="false">
+    <button type="button" class="btn btn-sm btn-outline-secondary kz-topbar-toggle" id="kzSidebarToggle" aria-label="{% trans 'Toggle navigation' %}" aria-controls="kzSidebar" aria-expanded="false">
         <i class="bi bi-list fs-5"></i>
     </button>
 
-    <nav class="kz-breadcrumb" aria-label="Breadcrumb">
+    <nav class="kz-breadcrumb" aria-label="{% trans 'Breadcrumb' %}">
         {% block breadcrumb %}{% endblock %}
     </nav>
 
     {% if user.is_authenticated %}
-    <button type="button" class="btn btn-sm btn-light border kz-palette-trigger" id="kzPaletteTrigger" aria-label="Search">
-        <i class="bi bi-search"></i> <span class="d-none d-md-inline text-body-secondary">Search…</span>
+    <button type="button" class="btn btn-sm btn-light border kz-palette-trigger" id="kzPaletteTrigger" aria-label="{% trans 'Search' %}">
+        <i class="bi bi-search"></i> <span class="d-none d-md-inline text-body-secondary">{% trans 'Search…' %}</span>
         <kbd class="kz-palette-kbd d-none d-md-inline">Ctrl K</kbd>
     </button>
     {% endif %}
 
-    <div class="ms-auto d-flex align-items-center gap-2">
+    <div class="ms-auto d-flex align-items-center gap-2 kz-topbar-actions">
         {% block topbar_actions %}{% endblock %}
 
         {% if current_tenant %}
@@ -23,9 +24,24 @@
         </span>
         {% endif %}
 
+        {% include "partials/language_switcher.html" %}
+
         {% if user.is_authenticated %}
         <div class="dropdown">
-            <button class="btn btn-sm btn-light border position-relative" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Alerts">
+            <button class="btn btn-sm btn-light border" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="{% trans 'Theme' %}">
+                <i class="bi bi-circle-half kz-theme-icon" id="kzThemeIcon"></i>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end kz-theme-menu">
+                <li><button type="button" class="dropdown-item kz-theme-option d-flex align-items-center gap-2" data-theme-choice="light"><i class="bi bi-sun"></i> {% trans 'Light' %} <i class="bi bi-check2 ms-auto kz-theme-check"></i></button></li>
+                <li><button type="button" class="dropdown-item kz-theme-option d-flex align-items-center gap-2" data-theme-choice="dark"><i class="bi bi-moon-stars"></i> {% trans 'Dark' %} <i class="bi bi-check2 ms-auto kz-theme-check"></i></button></li>
+                <li><button type="button" class="dropdown-item kz-theme-option d-flex align-items-center gap-2" data-theme-choice="system"><i class="bi bi-circle-half"></i> {% trans 'Match system' %} <i class="bi bi-check2 ms-auto kz-theme-check"></i></button></li>
+            </ul>
+        </div>
+        {% endif %}
+
+        {% if user.is_authenticated %}
+        <div class="dropdown">
+            <button class="btn btn-sm btn-light border position-relative" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="{% trans 'Alerts' %}">
                 <i class="bi bi-bell"></i>
                 {% if topbar_alerts %}
                 <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill text-bg-danger kz-alert-badge">
@@ -34,7 +50,7 @@
                 {% endif %}
             </button>
             <div class="dropdown-menu dropdown-menu-end p-0 kz-alert-menu">
-                <div class="px-3 py-2 border-bottom fw-semibold small text-uppercase text-body-secondary">Alerts</div>
+                <div class="px-3 py-2 border-bottom fw-semibold small text-uppercase text-body-secondary">{% trans 'Alerts' %}</div>
                 {% if topbar_alerts %}
                     {% for alert in topbar_alerts %}
                     <a class="dropdown-item d-flex align-items-start gap-2 py-2" href="{% url alert.url_name %}">
@@ -43,7 +59,7 @@
                     </a>
                     {% endfor %}
                 {% else %}
-                    <div class="px-3 py-3 text-body-secondary small">Nothing needs your attention right now.</div>
+                    <div class="px-3 py-3 text-body-secondary small">{% trans "Nothing needs your attention right now." %}</div>
                 {% endif %}
             </div>
         </div>
@@ -52,24 +68,24 @@
         {% if user.is_authenticated %}
         <div class="dropdown">
             <button class="btn btn-sm btn-light border d-flex align-items-center gap-2" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                <span class="kz-avatar">{{ user.email|slice:":1"|upper }}</span>
+                <span class="kz-avatar" aria-hidden="true">{{ user.email|slice:":1"|upper }}</span>
                 <span class="d-none d-md-inline">{{ user.email }}</span>
                 <i class="bi bi-chevron-down small"></i>
             </button>
             <ul class="dropdown-menu dropdown-menu-end">
-                <li><a class="dropdown-item" href="{% url 'accounts:mfa-status' %}"><i class="bi bi-shield-lock me-2"></i>Security</a></li>
+                <li><a class="dropdown-item" href="{% url 'accounts:mfa-status' %}"><i class="bi bi-shield-lock me-2"></i>{% trans 'Security' %}</a></li>
                 <li><hr class="dropdown-divider"></li>
                 <li>
                     <form method="post" action="{% url 'accounts:logout' %}">
                         {% csrf_token %}
-                        <button type="submit" class="dropdown-item"><i class="bi bi-box-arrow-right me-2"></i>Sign out</button>
+                        <button type="submit" class="dropdown-item"><i class="bi bi-box-arrow-right me-2"></i>{% trans 'Sign out' %}</button>
                     </form>
                 </li>
             </ul>
         </div>
         {% else %}
-        <a class="btn btn-sm btn-outline-secondary" href="{% url 'accounts:login' %}">Sign in</a>
-        <a class="btn btn-sm btn-primary" href="{% url 'tenants:onboard' %}">Register institution</a>
+        <a class="btn btn-sm btn-outline-secondary" href="{% url 'accounts:login' %}">{% trans 'Sign in' %}</a>
+        <a class="btn btn-sm btn-primary" href="{% url 'tenants:onboard' %}">{% trans 'Register institution' %}</a>
         {% endif %}
     </div>
 </header>

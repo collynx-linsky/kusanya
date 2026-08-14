@@ -110,6 +110,11 @@ MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
+    # Must be after SessionMiddleware (reads the session's saved
+    # language) and before CommonMiddleware (which needs the resolved
+    # language for its own behavior) -- Django's documented ordering
+    # requirement, not an arbitrary choice.
+    "django.middleware.locale.LocaleMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
@@ -136,6 +141,7 @@ TEMPLATES = [
             "context_processors": [
                 "django.template.context_processors.debug",
                 "django.template.context_processors.request",
+                "django.template.context_processors.i18n",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
                 "apps.tenants.context_processors.current_tenant",
@@ -232,6 +238,17 @@ LANGUAGE_CODE = "en-us"
 TIME_ZONE = "UTC"  # All timestamps stored in UTC; render in local tz in templates.
 USE_I18N = True
 USE_TZ = True
+
+# Two real languages, not an arbitrary placeholder list -- this is a
+# Tanzania-oriented platform (TZS currency, GEPG-style control numbers
+# throughout the domain model), so Swahili is the actual second
+# language this product needs, not a demonstration of i18n plumbing.
+# See ARCHITECTURE_DECISIONS ADR-038 for translation coverage scope.
+LANGUAGES = [
+    ("en", "English"),
+    ("sw", "Kiswahili"),
+]
+LOCALE_PATHS = [BASE_DIR / "locale"]
 
 # ---------------------------------------------------------------------------
 # Static / media

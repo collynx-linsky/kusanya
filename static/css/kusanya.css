@@ -3,6 +3,41 @@
    hardcoded color/spacing value here. See docs/DESIGN_SYSTEM.md. */
 
 /* ============================================================
+   Accessibility: skip link + focus-visible
+   ============================================================ */
+
+.kz-skip-link {
+  position: absolute;
+  top: -3rem;
+  left: var(--kz-space-3);
+  z-index: 3000;
+  background: var(--kz-surface);
+  color: var(--kz-text);
+  padding: var(--kz-space-2) var(--kz-space-4);
+  border-radius: var(--kz-radius-md);
+  box-shadow: var(--kz-shadow-lg);
+  transition: top var(--kz-transition-fast);
+}
+
+.kz-skip-link:focus {
+  top: var(--kz-space-3);
+  color: var(--kz-text);
+}
+
+/* Bootstrap 5 already ships a reasonable :focus-visible ring on its own
+   components (buttons, form controls, links) via --bs-focus-ring-*
+   variables — these rules only cover KUSANYA's own custom interactive
+   elements, which aren't native <button>/<a> styled-by-Bootstrap
+   elements and so don't inherit that automatically. */
+.kz-nav-link:focus-visible,
+.kz-palette-item:focus-visible,
+.kz-stat-card:focus-visible,
+.kz-avatar:focus-visible {
+  outline: 2px solid var(--kz-brand-400);
+  outline-offset: 2px;
+}
+
+/* ============================================================
    Base
    ============================================================ */
 
@@ -59,6 +94,10 @@ a {
 
 .kz-sidebar-brand:hover {
   color: #fff;
+}
+
+.kz-beta-badge {
+  font-size: 0.625rem;
 }
 
 .kz-sidebar-nav {
@@ -149,6 +188,10 @@ a {
   display: none;
 }
 
+.kz-topbar-actions {
+  flex-shrink: 0;
+}
+
 .kz-content {
   flex: 1;
   padding: var(--kz-space-5);
@@ -190,7 +233,25 @@ a {
   display: flex;
   align-items: center;
   gap: var(--kz-space-2);
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  /* Without min-width:0, a flex item's content (a long customer/tenant
+     name here) can force the whole topbar to overflow horizontally
+     instead of truncating -- this is what actually keeps the action
+     buttons on-screen and the page from scrolling sideways on a narrow
+     viewport. */
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* The breadcrumb trail is the first thing to go on a narrow viewport --
+   the page's own <h1> already gives the same context, and the topbar's
+   action buttons (search, theme, alerts, account) need the room more. */
+@media (max-width: 767.98px) {
+  .kz-breadcrumb {
+    display: none;
+  }
 }
 
 .kz-breadcrumb a {
@@ -302,7 +363,12 @@ a.kz-stat-card:hover {
 
 .kz-stat-meta {
   font-size: var(--kz-text-xs);
-  color: var(--kz-text-subtle);
+  /* --kz-text-muted, not --kz-text-subtle -- this holds real
+     informational text (e.g. "+12 this month") when used, unlike
+     .kz-empty-state-icon below, which is a decorative glyph exempt
+     from text contrast requirements. See ARCHITECTURE_DECISIONS
+     ADR-037. */
+  color: var(--kz-text-muted);
 }
 
 /* ============================================================
@@ -632,12 +698,72 @@ a.kz-stat-card:hover {
 }
 
 /* ============================================================
+   Print
+   ============================================================
+   Applies to every page globally, not just receipts -- without this,
+   printing (or "Save as PDF") any page in the app prints the sidebar,
+   top bar, toasts, and progress bar along with it. Bootstrap's own
+   `.d-print-none`/`.d-print-block` utilities still work on top of this
+   for page-specific print adjustments (see templates/receipts/detail.html's
+   Print button). */
+
+@media print {
+  .kz-sidebar,
+  .kz-sidebar-backdrop,
+  .kz-topbar,
+  .kz-progress-bar,
+  .kz-toast-region,
+  #kzPaletteModal,
+  #kzShortcutsModal,
+  #kzModal,
+  .kz-breadcrumb {
+    display: none !important;
+  }
+
+  .kz-main {
+    margin-inline-start: 0 !important;
+  }
+
+  .kz-content {
+    padding: 0 !important;
+    max-width: none !important;
+  }
+
+  /* Cards/tables read as bordered print documents, not screen UI --
+     drop shadows and background tints that only make sense on a
+     screen. */
+  .kz-card,
+  .kz-stat-card,
+  .kz-table-wrap,
+  .card {
+    box-shadow: none !important;
+    border: 1px solid #999 !important;
+  }
+
+  body {
+    background: #fff !important;
+  }
+
+  a[href]:not(.btn)::after {
+    content: none !important; /* don't print raw URLs after links */
+  }
+}
+
+/* ============================================================
    Misc
    ============================================================ */
 
 .display-6,
 .kz-stat-value {
   font-variant-numeric: tabular-nums;
+}
+
+.kz-theme-menu {
+  min-width: 12rem;
+}
+
+.kz-theme-check {
+  visibility: hidden;
 }
 
 .kz-alert-badge {

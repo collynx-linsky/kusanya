@@ -1,117 +1,118 @@
-{% load kusanya_ui %}
+{% load i18n kusanya_ui %}
 <div class="kz-sidebar-backdrop" id="kzSidebarBackdrop"></div>
 <aside class="kz-sidebar" id="kzSidebar">
     <a class="kz-sidebar-brand" href="{% url 'core:home' %}">
         <i class="bi bi-grid-1x2-fill"></i>
         {{ KUSANYA_BRAND_NAME }}
-        <span class="badge text-bg-secondary fw-normal ms-auto" style="font-size: 0.625rem;">Beta</span>
+        <span class="badge text-bg-secondary fw-normal ms-auto kz-beta-badge">{% trans 'Beta' %}</span>
     </a>
 
-    <nav class="kz-sidebar-nav">
+    <nav class="kz-sidebar-nav" aria-label="{% trans 'Primary' %}">
         {% if user.is_authenticated %}
             <div class="kz-nav-section">
-                <a class="kz-nav-link {% is_active_ns 'core' %}" href="{% url 'core:dashboard-router' %}">
+                <a class="kz-nav-link {% is_active_ns 'core' %}" href="{% url 'core:dashboard-router' %}" {% aria_current_ns 'core' %}>
                     <span class="kz-nav-icon"><i class="bi bi-speedometer2"></i></span>
-                    Dashboard
+                    {% trans 'Dashboard' %}
                 </a>
             </div>
 
             {% if current_tenant %}
             <div class="kz-nav-section">
-                <div class="kz-nav-section-label">Collections</div>
-                <a class="kz-nav-link {% is_active_ns 'customers' %}" href="{% url 'customers:list' %}">
+                <div class="kz-nav-section-label">{% trans 'Collections' %}</div>
+                <a class="kz-nav-link {% is_active_ns 'customers' %}" href="{% url 'customers:list' %}" {% aria_current_ns 'customers' %}>
                     <span class="kz-nav-icon"><i class="bi bi-people"></i></span>
-                    Customers
+                    {% trans 'Customers' %}
                 </a>
-                <a class="kz-nav-link {% is_active_ns 'billing' %}" href="{% url 'billing:list' %}">
+                <a class="kz-nav-link {% is_active_ns 'billing' %}" href="{% url 'billing:list' %}" {% aria_current_ns 'billing' %}>
                     <span class="kz-nav-icon"><i class="bi bi-receipt"></i></span>
-                    Bills
+                    {% trans 'Bills' %}
                 </a>
-                <a class="kz-nav-link {% is_active_ns 'control_numbers' %}" href="{% url 'control_numbers:list' %}">
+                <a class="kz-nav-link {% is_active_ns 'control_numbers' %}" href="{% url 'control_numbers:list' %}" {% aria_current_ns 'control_numbers' %}>
                     <span class="kz-nav-icon"><i class="bi bi-hash"></i></span>
-                    Control numbers
+                    {% trans 'Control numbers' %}
                 </a>
-                <a class="kz-nav-link {% is_active_ns 'payments' %}" href="{% url 'payments:list' %}">
+                <a class="kz-nav-link {% is_active_ns 'payments' %}" href="{% url 'payments:list' %}" {% aria_current_ns 'payments' %}>
                     <span class="kz-nav-icon"><i class="bi bi-credit-card"></i></span>
-                    Payments
+                    {% trans 'Payments' %}
                 </a>
             </div>
 
             <div class="kz-nav-section">
-                <div class="kz-nav-section-label">Finance</div>
-                <a class="kz-nav-link {% is_active_ns 'ledger' %}" href="{% url 'ledger:list' %}">
+                <div class="kz-nav-section-label">{% trans 'Finance' %}</div>
+                <a class="kz-nav-link {% is_active_ns 'ledger' %}" href="{% url 'ledger:list' %}" {% aria_current_ns 'ledger' %}>
                     <span class="kz-nav-icon"><i class="bi bi-journal-text"></i></span>
-                    Ledger
+                    {% trans 'Ledger' %}
                 </a>
-                <a class="kz-nav-link {% is_active_ns 'revenue' %}" href="{% url 'revenue:summary' %}">
+                <a class="kz-nav-link {% is_active_ns 'revenue' %}" href="{% url 'revenue:summary' %}" {% aria_current_ns 'revenue' %}>
                     <span class="kz-nav-icon"><i class="bi bi-graph-up"></i></span>
-                    Revenue
+                    {% trans 'Revenue' %}
                 </a>
-                <a class="kz-nav-link {% is_active_ns 'reconciliation' %}" href="{% url 'reconciliation:list' %}">
+                <a class="kz-nav-link {% is_active_ns 'reconciliation' %}" href="{% url 'reconciliation:list' %}" {% aria_current_ns 'reconciliation' %}>
                     <span class="kz-nav-icon"><i class="bi bi-check2-square"></i></span>
-                    Reconciliation
+                    {% trans 'Reconciliation' %}
                 </a>
-                <a class="kz-nav-link {% is_active_ns 'settlement' %}" href="{% url 'settlement:list' %}">
+                <a class="kz-nav-link {% is_active_ns 'settlement' %}" href="{% url 'settlement:list' %}" {% aria_current_ns 'settlement' %}>
                     <span class="kz-nav-icon"><i class="bi bi-bank"></i></span>
-                    Settlements
+                    {% trans 'Settlements' %}
                 </a>
             </div>
 
             <div class="kz-nav-section">
-                <div class="kz-nav-section-label">Operations</div>
-                <a class="kz-nav-link {% is_active_view 'core:background-jobs' %}" href="{% url 'core:background-jobs' %}">
+                <div class="kz-nav-section-label">{% trans 'Operations' %}</div>
+                <a class="kz-nav-link {% is_active_view 'core:background-jobs' %}" href="{% url 'core:background-jobs' %}" {% aria_current_ns 'core:background-jobs' %}>
                     <span class="kz-nav-icon"><i class="bi bi-hdd-stack"></i></span>
-                    Background jobs
+                    {% trans 'Background jobs' %}
                 </a>
-                <a class="kz-nav-link {% is_active_ns 'webhooks' %}" href="{% url 'webhooks:list' %}">
+                <a class="kz-nav-link {% is_active_ns 'webhooks' %}" href="{% url 'webhooks:list' %}" {% aria_current_ns 'webhooks' %}>
                     <span class="kz-nav-icon"><i class="bi bi-broadcast"></i></span>
-                    Webhooks
+                    {% trans 'Webhooks' %}
                 </a>
-                <a class="kz-nav-link {% is_active_ns 'notifications' %}" href="{% url 'notifications:list' %}">
+                <a class="kz-nav-link {% is_active_ns 'notifications' %}" href="{% url 'notifications:list' %}" {% aria_current_ns 'notifications' %}>
                     <span class="kz-nav-icon"><i class="bi bi-bell"></i></span>
-                    Notifications
+                    {% trans 'Notifications' %}
                 </a>
-                <a class="kz-nav-link {% is_active_ns 'receipts' %}" href="{% url 'receipts:list' %}">
+                <a class="kz-nav-link {% is_active_ns 'receipts' %}" href="{% url 'receipts:list' %}" {% aria_current_ns 'receipts' %}>
                     <span class="kz-nav-icon"><i class="bi bi-file-earmark-text"></i></span>
-                    Receipts
+                    {% trans 'Receipts' %}
                 </a>
-                <a class="kz-nav-link {% is_active_ns 'reports' %}" href="{% url 'reports:index' %}">
+                <a class="kz-nav-link {% is_active_ns 'reports' %}" href="{% url 'reports:index' %}" {% aria_current_ns 'reports' %}>
                     <span class="kz-nav-icon"><i class="bi bi-bar-chart"></i></span>
-                    Reports
+                    {% trans 'Reports' %}
                 </a>
             </div>
 
             <div class="kz-nav-section">
-                <div class="kz-nav-section-label">Developer</div>
-                <a class="kz-nav-link {% is_active_ns 'api_credentials' %}" href="{% url 'api_credentials:list' %}">
+                <div class="kz-nav-section-label">{% trans 'Developer' %}</div>
+                <a class="kz-nav-link {% is_active_ns 'api_credentials' %}" href="{% url 'api_credentials:list' %}" {% aria_current_ns 'api_credentials' %}>
                     <span class="kz-nav-icon"><i class="bi bi-key"></i></span>
-                    API credentials
+                    {% trans 'API credentials' %}
                 </a>
-                <a class="kz-nav-link" href="{% url 'api:docs' %}" target="_blank">
+                <a class="kz-nav-link" href="{% url 'api:docs' %}" target="_blank" rel="noopener">
                     <span class="kz-nav-icon"><i class="bi bi-box-arrow-up-right"></i></span>
-                    API documentation
+                    {% trans 'API documentation' %}
+                    <span class="visually-hidden">{% trans '(opens in a new tab)' %}</span>
                 </a>
             </div>
             {% endif %}
 
             {% if user.is_staff %}
             <div class="kz-nav-section">
-                <div class="kz-nav-section-label">Platform admin</div>
+                <div class="kz-nav-section-label">{% trans 'Platform admin' %}</div>
                 <a class="kz-nav-link" href="{% url 'tenants:pending-tenants' %}">
                     <span class="kz-nav-icon"><i class="bi bi-building-add"></i></span>
-                    Pending institutions
+                    {% trans 'Pending institutions' %}
                 </a>
                 <a class="kz-nav-link" href="{% url 'revenue:platform-dashboard' %}">
                     <span class="kz-nav-icon"><i class="bi bi-cash-stack"></i></span>
-                    Platform revenue
+                    {% trans 'Platform revenue' %}
                 </a>
                 <a class="kz-nav-link" href="{% url 'settlement:platform-list' %}">
                     <span class="kz-nav-icon"><i class="bi bi-bank2"></i></span>
-                    Settlements
+                    {% trans 'Settlements' %}
                 </a>
                 <a class="kz-nav-link" href="/admin/">
                     <span class="kz-nav-icon"><i class="bi bi-shield-lock"></i></span>
-                    Django admin
+                    {% trans 'Django admin' %}
                 </a>
             </div>
             {% endif %}
@@ -120,8 +121,8 @@
 
     {% if user.is_authenticated %}
     <div class="kz-sidebar-footer">
-        <a class="kz-nav-link" href="{% url 'accounts:mfa-status' %}" title="Security settings">
-            <span class="kz-avatar">{{ user.email|slice:":1"|upper }}</span>
+        <a class="kz-nav-link" href="{% url 'accounts:mfa-status' %}" title="{% trans 'Security settings' %}">
+            <span class="kz-avatar" aria-hidden="true">{{ user.email|slice:":1"|upper }}</span>
             <span class="text-truncate">{{ user.email }}</span>
         </a>
     </div>

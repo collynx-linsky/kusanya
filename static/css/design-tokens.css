@@ -49,7 +49,12 @@ parallel stylesheet. See docs/DESIGN_SYSTEM.md.
 
   --kz-sidebar-bg: var(--kz-gray-900);
   --kz-sidebar-text: var(--kz-gray-300);
-  --kz-sidebar-text-muted: var(--kz-gray-500);
+  /* gray-500 here measures 3.75:1 against gray-900 -- fails WCAG AA's
+     4.5:1 for small text (this token backs section labels, which are
+     bold but only 12px, too small to qualify for the relaxed
+     large-text 3:1 threshold). gray-400 measures 6.96:1. See
+     ARCHITECTURE_DECISIONS ADR-037. */
+  --kz-sidebar-text-muted: var(--kz-gray-400);
   --kz-sidebar-active-bg: rgba(99, 102, 241, 0.16);
   --kz-sidebar-active-text: #ffffff;
   --kz-sidebar-border: rgba(255, 255, 255, 0.08);

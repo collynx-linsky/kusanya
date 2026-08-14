@@ -1,0 +1,198 @@
+# Swahili translation of KUSANYA's UI shell (sidebar, top bar, auth pages).
+# See ARCHITECTURE_DECISIONS ADR-038 and docs/DESIGN_SYSTEM.md for scope.
+#
+# This file was authored by hand rather than extracted with
+# `django-admin makemessages` -- GNU gettext's C tools (msguniq etc.,
+# which makemessages shells out to) aren't installed in this
+# environment and require system/admin-level installation this
+# environment doesn't have. Every msgid below was collected directly
+# from the {% trans %}/{% blocktrans %} tags actually present in the
+# templates it covers (templates/base.html, base_auth.html,
+# partials/sidebar.html, partials/topbar.html,
+# partials/language_switcher.html, and every page that extends
+# base_auth.html -- accounts/login.html, accounts/mfa_verify.html,
+# tenants/onboarding.html) -- not guessed or invented. Form field
+# labels (e.g. the onboarding form's per-field labels, which come from
+# apps.tenants.forms rather than a template) are a known, separate gap
+# -- not covered here. Compiled to the real .mo Django reads via
+# `pybabel compile` (pure Python, ships with the `babel` package,
+# requires no system gettext either) rather than `compilemessages`.
+msgid ""
+msgstr ""
+"Project-Id-Version: KUSANYA\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-08-14 09:00+0000\n"
+"PO-Revision-Date: 2026-08-14 09:00+0000\n"
+"Language: sw\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "(opens in a new tab)"
+msgstr "(inafunguka kwenye kichupo kipya)"
+
+msgid "API credentials"
+msgstr "Vitambulisho vya API"
+
+msgid "API documentation"
+msgstr "Nyaraka za API"
+
+msgid "Alerts"
+msgstr "Tahadhari"
+
+msgid "Any legitimate organization that bills and collects payments can use KUSANYA — schools, clinics, retailers, hotels, landlords, NGOs, and more."
+msgstr "Shirika lolote halali linalotoa bili na kukusanya malipo linaweza kutumia KUSANYA — shule, kliniki, maduka, hoteli, wenye nyumba, mashirika yasiyo ya kiserikali, na mengineyo."
+
+msgid "Background jobs"
+msgstr "Kazi za nyuma"
+
+msgid "Beta"
+msgstr "Beta"
+
+msgid "Bills"
+msgstr "Bili"
+
+msgid "Breadcrumb"
+msgstr "Njia ya kurasa"
+
+msgid "Collections"
+msgstr "Ukusanyaji"
+
+msgid "Control numbers"
+msgstr "Namba za udhibiti"
+
+msgid "Customers"
+msgstr "Wateja"
+
+msgid "Dark"
+msgstr "Giza"
+
+msgid "Dashboard"
+msgstr "Dashibodi"
+
+msgid "Developer"
+msgstr "Msanidi programu"
+
+msgid "Django admin"
+msgstr "Msimamizi wa Django"
+
+msgid "Email"
+msgstr "Barua pepe"
+
+msgid "Enter your 6-digit code"
+msgstr "Weka msimbo wako wa tarakimu 6"
+
+msgid "Finance"
+msgstr "Fedha"
+
+msgid "From your authenticator app, or one of your backup codes."
+msgstr "Kutoka kwenye programu yako ya uthibitishaji, au moja ya misimbo yako ya akiba."
+
+msgid "Institution"
+msgstr "Taasisi"
+
+msgid "Language"
+msgstr "Lugha"
+
+msgid "Ledger"
+msgstr "Kitabu cha hesabu"
+
+msgid "Light"
+msgstr "Mwanga"
+
+msgid "Match system"
+msgstr "Fuata mfumo"
+
+msgid "New institution? <a href=\"%(onboard_url)s\">Register here</a>."
+msgstr "Taasisi mpya? <a href=\"%(onboard_url)s\">Jisajili hapa</a>."
+
+msgid "Nothing needs your attention right now."
+msgstr "Hakuna kinachohitaji umakini wako kwa sasa."
+
+msgid "Notifications"
+msgstr "Arifa"
+
+msgid "Operations"
+msgstr "Uendeshaji"
+
+msgid "Password"
+msgstr "Nenosiri"
+
+msgid "Payments"
+msgstr "Malipo"
+
+msgid "Pending institutions"
+msgstr "Taasisi zinazosubiri"
+
+msgid "Platform admin"
+msgstr "Msimamizi wa jukwaa"
+
+msgid "Platform revenue"
+msgstr "Mapato ya jukwaa"
+
+msgid "Primary"
+msgstr "Kuu"
+
+msgid "Receipts"
+msgstr "Risiti"
+
+msgid "Reconciliation"
+msgstr "Upatanisho"
+
+msgid "Register institution"
+msgstr "Sajili taasisi"
+
+msgid "Register your institution"
+msgstr "Sajili taasisi yako"
+
+msgid "Reports"
+msgstr "Ripoti"
+
+msgid "Revenue"
+msgstr "Mapato"
+
+msgid "Search"
+msgstr "Tafuta"
+
+msgid "Search…"
+msgstr "Tafuta…"
+
+msgid "Security"
+msgstr "Usalama"
+
+msgid "Security settings"
+msgstr "Mipangilio ya usalama"
+
+msgid "Settlements"
+msgstr "Malipo ya mwisho"
+
+msgid "Sign in"
+msgstr "Ingia"
+
+msgid "Sign out"
+msgstr "Toka"
+
+msgid "Skip to main content"
+msgstr "Rukia yaliyomo makuu"
+
+msgid "Submit for approval"
+msgstr "Wasilisha kwa idhini"
+
+msgid "Theme"
+msgstr "Mandhari"
+
+msgid "Toggle navigation"
+msgstr "Fungua menyu ya urambazaji"
+
+msgid "Verify"
+msgstr "Thibitisha"
+
+msgid "Verify your identity"
+msgstr "Thibitisha utambulisho wako"
+
+msgid "Webhooks"
+msgstr "Webhooks"
+
+msgid "Your admin account"
+msgstr "Akaunti yako ya msimamizi"

@@ -1,10 +1,11 @@
 # Design System
 
-P0 (Foundation), P1 (Enterprise UX), and P2 (Advanced Features) of the
-enterprise-UX rework — see ARCHITECTURE_DECISIONS ADR-033 (P0), ADR-034
-(P1), and ADR-036 (P2, plus ADR-035 for a real integrity bug P2's work
-surfaced) for why this stayed Django Templates + Bootstrap 5 + HTMX
-rather than a SPA framework, and what tradeoff that constraint implies.
+P0 (Foundation), P1 (Enterprise UX), P2 (Advanced Features), and P3
+(Quality) of the enterprise-UX rework — see ARCHITECTURE_DECISIONS
+ADR-033 (P0), ADR-034 (P1), ADR-036 (P2, plus ADR-035 for a real
+integrity bug P2's work surfaced), and ADR-037/038/039/040 (P3) for why
+this stayed Django Templates + Bootstrap 5 + HTMX rather than a SPA
+framework, and what tradeoff that constraint implies.
 
 This document is both a reference for the pieces already built and an
 honest map of what's migrated to the new patterns versus what still
@@ -420,6 +421,182 @@ also what surfaced a real bug in the hash chain itself — see
 ARCHITECTURE_DECISIONS ADR-035 for the full story (a false-positive
 "tampering" report caused by deleting a user after they performed an
 audited action, and the fix).
+
+## Accessibility
+
+Contrast, keyboard, and screen-reader basics across the shell, not a
+one-page audit. `--kz-sidebar-text-muted` (`static/css/design-tokens.css`)
+was changed from `--kz-gray-500` (3.75:1 against the sidebar background
+— fails WCAG AA's 4.5:1 for normal text) to `--kz-gray-400` (6.96:1) —
+see ARCHITECTURE_DECISIONS ADR-037 for how this was found (computing
+real relative-luminance contrast ratios for every text/background token
+pairing in use, not eyeballing it). `.kz-skip-link` (`base.html` and
+`base_auth.html`, both) is a real skip-to-content link targeting
+`#kz-content-region`, visible on keyboard focus. `:focus-visible`
+outlines were added for `.kz-nav-link`, `.kz-palette-item`,
+`.kz-stat-card`, and `.kz-avatar` — interactive elements that previously
+fell back to the browser default (or nothing, where a default outline
+had been suppressed elsewhere in `kusanya.css`). Every active nav link
+in `partials/sidebar.html` now carries `aria-current="page"` via a new
+`{% aria_current_ns %}` template tag (`apps.core.templatetags.kusanya_ui`)
+alongside the pre-existing `{% is_active_ns %}`/`{% is_active_view %}`
+tags that drive the same link's active *styling* — kept as separate
+tags rather than merged, since a link can need the CSS class without
+being the page-level "current page" (e.g. a filter chip). User-facing
+strings in the shell (sidebar, topbar, both base templates) are wrapped
+in `{% trans %}` — see "Internationalization" below, which doubles as
+an accessibility win since screen readers announce content in whatever
+language `lang="{{ LANGUAGE_CODE }}"` (set on `<html>`) declares.
+
+## Dark mode
+
+`[data-bs-theme]` on `<html>`, resolved from a three-way preference —
+`light` / `dark` / `system` — stored in `localStorage` under `kzTheme`.
+The resolve has to happen *before* first paint or the page flashes the
+wrong theme; `partials/theme_init.html` is a small synchronous
+`<script>` included first inside `<head>` on both `base.html` and
+`base_auth.html` (before any stylesheet) that reads `localStorage`,
+falls back to `matchMedia("(prefers-color-scheme: dark)")`, and sets
+`data-bs-theme` directly — no framework, no flash. The visible toggle
+(topbar's theme dropdown, three `.kz-theme-option` buttons) is wired in
+`static/js/kusanya.js`, which calls the *same* resolution logic via
+`window.KZLogic.resolveTheme` (`static/js/kusanya-logic.js` — see
+"Automated frontend testing" below for why this got split out) so the
+no-flash script and the live toggle can never disagree about what
+"system" currently resolves to. Choosing "system" after page load also
+attaches a `matchMedia` change listener, so the theme updates live if
+the OS preference changes without a reload. Design tokens
+(`design-tokens.css`) already fed Bootstrap's own `--bs-*` variables
+from P0, so no component needed dark-mode-specific overrides beyond
+what `[data-bs-theme="dark"]` already gives Bootstrap out of the box.
+
+## Mobile optimization
+
+An audit of every component added in P0–P2 against the existing
+`lg` breakpoint (the sidebar's own off-canvas threshold, unchanged from
+P0). The one real fix: `.kz-breadcrumb` was overflowing/wrapping badly
+on narrow viewports, so it's hidden below `767.98px`
+(`@media (max-width: 767.98px) { .kz-breadcrumb { display: none; } }`)
+— the page title in `<h1>`/`{% block title %}` already conveys location
+on mobile, so hiding the breadcrumb trail there loses no information,
+only chrome that didn't fit. `.kz-topbar-actions { flex-shrink: 0; }`
+stops the topbar's action buttons (theme toggle, language switcher,
+notification bell) from being crushed when the topbar is narrow. No
+other P0–P2 component needed a mobile-specific rule — the design
+system's grid/spacing tokens and Bootstrap's own responsive utilities
+already covered the rest.
+
+## Internationalization
+
+Django's standard i18n framework: `LocaleMiddleware` (`config/settings/base.py`,
+positioned after `SessionMiddleware`/before `CommonMiddleware`, per
+Django's documented ordering requirement), the `i18n` context processor,
+and `{% trans %}`/`{% blocktrans %}` throughout the shell templates
+(`base.html`, `base_auth.html`, `sidebar.html`, `topbar.html`) and every
+page that extends `base_auth.html` (`accounts/login.html`,
+`accounts/mfa_verify.html`, `tenants/onboarding.html`). `LANGUAGES =
+[("en", "English"), ("sw", "Kiswahili")]`; `partials/language_switcher.html`
+is a shared dropdown (included in both base templates' topbar) that
+POSTs to Django's built-in `set_language` view
+(`path("i18n/", include("django.conf.urls.i18n"))` in `config/urls.py`)
+and shows a checkmark against `{% get_current_language %}`.
+
+Kiswahili's `locale/sw/LC_MESSAGES/django.po` is hand-authored (57
+reviewed translations covering the shell chrome and every pre-login
+page) and compiled with `pybabel compile` rather than GNU gettext's
+`msgfmt` — see ARCHITECTURE_DECISIONS ADR-038 for why (no admin rights
+to install system gettext in this environment; `babel`, a pure-Python
+package, is a real substitute for *compiling* `.po` → `.mo`, just not
+for `makemessages`' auto-extraction, which is manual for now). This is
+scoped honestly to what's actually translated — the shell and the
+pre-login pages, not yet every authenticated-area page body, model-
+generated string, or Python-side form field label — rather than
+claiming broader coverage than it has. Live-verifying the language
+switcher's actual HTTP round-trip (not just that the `.mo` compiled)
+caught one real bug this way: `login.html` and `onboarding.html` each
+override `base_auth.html`'s `{% block topbar_actions %}` with their own
+markup, so the parent's already-translated "Sign in"/"Register
+institution" text never reached those two pages — the override's own
+copy needed `{% trans %}` independently. See ADR-038 for the full
+story.
+
+## Performance
+
+Three real N+1 query fixes (`apps.customers.views.customer_list`/`customer_detail`,
+`apps.billing.views.bill_detail`) — see ARCHITECTURE_DECISIONS ADR-039
+for the mechanism (`QuerySet.count()` always issues its own query, even
+inside a `prefetch_related`'d loop, so a per-row `{{ x.count }}` in a
+template was one extra query per row rendered; fixed via
+`.annotate(Count(...))` and, for `bill_detail`, extending the existing
+`prefetch_related` to cover `payment_allocations__payment` and
+collapsing a separate `.exists()` + `.all()` into one `{% with %}`).
+Both base templates gained `<link rel="preconnect">` hints for the CDN
+origins (`cdn.jsdelivr.net`, `unpkg.com`) already in use for
+Bootstrap/HTMX, shortening the connection-setup time for those requests
+without changing what's loaded. No bundler/build-step was introduced
+(ADR-033 still holds) — these are the two performance levers available
+without one: fewer queries per request, and faster setup for the fixed,
+small set of external requests every page already makes.
+
+## Print/PDF optimization
+
+A global `@media print` block in `kusanya.css` hides shell chrome —
+sidebar, topbar, the progress bar, the toast region, and every modal
+(`#kzPaletteModal`, `#kzShortcutsModal`, `#kzModal`) — on *every* page,
+not just designated "printable" ones, plus `.kz-breadcrumb` (redundant
+once the page has a printed title) and the `.kz-main` margin the
+sidebar otherwise reserves. Cards/tables lose their shadow and get a
+plain `1px solid` border instead — screen-only elevation cues that
+don't mean anything on paper. `templates/receipts/detail.html` was
+rewritten onto the current `.kz-card` component (it had been left on
+the pre-P0 `.card`/`.card-body` markup) and its print action relabeled
+"Print / Save as PDF" — `window.print()` already lets the browser's own
+print dialog save to PDF, so no separate PDF-generation library was
+needed for what is, in every browser this app needs to support, the
+same underlying capability.
+
+## Security UX
+
+Two additions, both reusing infrastructure this project already had
+rather than building something parallel. A password-visibility toggle
+(`static/js/kusanya.js`) is applied automatically to every
+`input[type="password"].form-control` on the page — wraps it in
+`.kz-password-wrap`, adds a show/hide button with `aria-pressed`
+tracking its state — reducing mistyped-password lockouts against this
+app's own login throttle (`apps.accounts.throttle`, 5 failed attempts)
+without weakening anything: the value never leaves the input, only how
+the browser renders it changes. And an MFA-not-enabled nudge was added
+to `apps.core.context_processors.topbar_alerts` (the same real,
+live-computed alerts mechanism from ADR-034 — open reconciliation
+exceptions, pending tenant approvals) rather than a second notification
+path: if `MFADevice.objects.filter(user=request.user, confirmed=True)`
+is empty, an alert linking to `accounts:mfa-status` appears in the
+topbar bell.
+
+## Automated frontend testing
+
+`static/js/kusanya.js` stayed a single unbundled `<script>` (ADR-033:
+no build step), so rather than introduce a bundler purely to make it
+importable, its two DOM-independent pure functions — `resolveTheme`
+(dark mode's light/dark/system resolution) and `isTypingInField` (the
+keyboard-shortcut guard that ignores `/` and `?` while the user is
+typing in a field) — were split into `static/js/kusanya-logic.js`, a
+small UMD-style module: a plain `window.KZLogic` global in the browser
+(loaded via its own `<script>` tag immediately before `kusanya.js` in
+both base templates — no behavior change), `module.exports` under
+Node/Vitest. `static/js/kusanya-logic.test.js` unit-tests that module
+directly (8 tests). `static/js/kusanya.dom.test.js` uses Vitest's
+`jsdom` environment to `import()` the *actual* production `kusanya.js`
+against a hand-built DOM fragment and assert on real mutations — the
+password-toggle and bulk-selection-bar behaviors (5 tests) — rather
+than reimplementing their logic under test. Command palette, toasts,
+and modal wiring depend on the Bootstrap JS bundle loaded from a CDN in
+the real page; faking `bootstrap.Toast`/`Modal` in jsdom to cover those
+would test the fake, not the app, so they're left to manual live
+verification instead. `npm test` (via `package.json`/`vitest.config.js`
+at the repo root, dev-tooling only — no `dependencies`, only
+`devDependencies: {vitest, jsdom}`) runs all 13 tests. See
+ARCHITECTURE_DECISIONS ADR-040 for the full reasoning.
 
 ## Migration status
 

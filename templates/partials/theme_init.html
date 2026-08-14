@@ -1,0 +1,14 @@
+<script>
+    // Resolves and applies the color theme BEFORE first paint, so there's
+    // no flash of the wrong theme -- must run synchronously, in <head>,
+    // before the stylesheets that read data-bs-theme. See
+    // docs/DESIGN_SYSTEM.md's "Dark mode" section and
+    // static/js/kusanya.js for the toggle UI that calls the same
+    // resolve function later.
+    (function () {
+        var stored = localStorage.getItem("kzTheme"); // "light" | "dark" | "system" | null
+        var systemDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+        var resolved = stored === "light" || stored === "dark" ? stored : (systemDark ? "dark" : "light");
+        document.documentElement.setAttribute("data-bs-theme", resolved);
+    })();
+</script>

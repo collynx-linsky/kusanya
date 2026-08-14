@@ -63,8 +63,13 @@ def bill_list(request):
 def bill_detail(request, pk):
     if request.tenant is None:
         return render(request, "dashboard/no_access.html")
+    # payment_allocations__payment: the template shows each allocation's
+    # payment.merchant_reference -- without this, that's an extra query
+    # per allocation on top of the ones fixed in ADR-039.
     bill = get_object_or_404(
-        Bill.objects.select_related("customer_account__customer").prefetch_related("items"),
+        Bill.objects.select_related("customer_account__customer").prefetch_related(
+            "items", "payment_allocations__payment"
+        ),
         pk=pk,
         tenant=request.tenant,
     )

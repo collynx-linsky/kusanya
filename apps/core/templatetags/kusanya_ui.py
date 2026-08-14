@@ -46,6 +46,23 @@ def is_active_view(context, *view_names: str) -> str:
     return "active" if request.resolver_match.view_name in view_names else ""
 
 
+@register.simple_tag(takes_context=True)
+def aria_current_ns(context, *namespaces: str):
+    """`aria-current="page"` companion to is_active_ns/is_active_view --
+    a separate tag (not folded into the class-name one) since it's a
+    real HTML attribute, not a CSS class token, and screen readers read
+    it to announce "current page" on the active sidebar link. Returns
+    mark_safe'd output since it's a fixed, non-user-controlled string --
+    never interpolates request data."""
+    from django.utils.safestring import mark_safe
+
+    request = context.get("request")
+    if request is None or not getattr(request, "resolver_match", None):
+        return ""
+    is_current = request.resolver_match.app_name in namespaces or request.resolver_match.view_name in namespaces
+    return mark_safe('aria-current="page"') if is_current else ""
+
+
 @register.filter
 def status_badge_class(value) -> str:
     """`{{ payment.status|status_badge_class }}` -> a Bootstrap

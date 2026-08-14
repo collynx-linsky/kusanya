@@ -8,3 +8,11 @@ django-debug-toolbar>=4.4
 django-extensions>=3.2
 freezegun>=1.5
 bandit>=1.9
+
+# Compiles translation .po -> .mo (apps.core's translated templates,
+# see ARCHITECTURE_DECISIONS ADR-038) without needing GNU gettext's C
+# tools installed system-wide -- `pybabel compile -d locale -l <lang>`
+# is the dev-time equivalent of `django-admin compilemessages` here.
+# Not needed at runtime: Django reads compiled .mo files with its own
+# built-in parser, independent of both gettext and babel.
+babel>=2.14

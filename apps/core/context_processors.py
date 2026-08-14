@@ -26,6 +26,19 @@ def topbar_alerts(request):
         return {}
 
     alerts = []
+
+    from apps.accounts.models import MFADevice
+
+    if not MFADevice.objects.filter(user=request.user, confirmed=True).exists():
+        alerts.append(
+            {
+                "icon": "bi-shield-exclamation",
+                "level": "warning",
+                "text": "Two-factor authentication isn't enabled on your account",
+                "url_name": "accounts:mfa-status",
+            }
+        )
+
     tenant = getattr(request, "tenant", None)
     if tenant is not None:
         from apps.reconciliation.models import ExceptionStatus, ReconciliationException

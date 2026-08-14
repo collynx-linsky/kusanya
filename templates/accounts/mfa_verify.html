@@ -1,11 +1,12 @@
 {% extends "base_auth.html" %}
-{% block title %}Verify your identity{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "Verify your identity" %}{% endblock %}
 {% block topbar_actions %}{% endblock %}
 {% block content %}
 <div class="kz-form-card mx-auto">
-    <h1 class="h4 mb-3">Enter your 6-digit code</h1>
+    <h1 class="h4 mb-3">{% trans "Enter your 6-digit code" %}</h1>
     <p class="text-body-secondary small">
-        From your authenticator app, or one of your backup codes.
+        {% trans "From your authenticator app, or one of your backup codes." %}
     </p>
     <form method="post">
         {% csrf_token %}
@@ -14,7 +15,7 @@
                    inputmode="numeric" autocomplete="one-time-code" autofocus
                    placeholder="123456" maxlength="12">
         </div>
-        <button type="submit" class="btn btn-primary w-100">Verify</button>
+        <button type="submit" class="btn btn-primary w-100">{% trans "Verify" %}</button>
     </form>
 </div>
 {% endblock %}

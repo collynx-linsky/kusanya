@@ -1,7 +1,7 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
-from django.db.models import Q
+from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 
@@ -33,7 +33,13 @@ def customer_list(request):
     if request.tenant is None:
         return render(request, "dashboard/no_access.html")
 
-    customers = Customer.objects.filter(tenant=request.tenant).prefetch_related("accounts")
+    # annotate(account_count=...), not prefetch_related("accounts") +
+    # {{ customer.accounts.count }} in the template -- .count() on a
+    # related manager always issues its own query regardless of
+    # prefetching (prefetch only helps .all()/iteration), so the
+    # original version ran one extra COUNT query per row on every page
+    # of the list (up to 25/page). See ARCHITECTURE_DECISIONS ADR-039.
+    customers = Customer.objects.filter(tenant=request.tenant).annotate(account_count=Count("accounts"))
 
     query = request.GET.get("q", "").strip()
     if query:
@@ -67,7 +73,9 @@ def customer_detail(request, pk):
     if request.tenant is None:
         return render(request, "dashboard/no_access.html")
     customer = get_object_or_404(Customer, pk=pk, tenant=request.tenant)
-    accounts = customer.accounts.all()
+    # Same reasoning as customer_list above -- annotate, don't call
+    # .bills.count() per row in the template.
+    accounts = customer.accounts.annotate(bill_count=Count("bills"))
     activity = get_activity_for(customer)
     return render(
         request, "customers/detail.html", {"customer": customer, "accounts": accounts, "activity": activity}

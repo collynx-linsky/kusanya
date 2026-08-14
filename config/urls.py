@@ -13,6 +13,7 @@ from django.urls import include, path
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+    path("i18n/", include("django.conf.urls.i18n")),  # POST target for the language switcher (set_language)
     path("accounts/", include("apps.accounts.urls")),
     path("", include("apps.core.urls")),
     path("", include("apps.tenants.urls")),

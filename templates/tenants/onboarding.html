@@ -1,25 +1,26 @@
 {% extends "base_auth.html" %}
-{% block title %}Register your institution{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "Register your institution" %}{% endblock %}
 {% block topbar_actions %}
-<a class="btn btn-sm btn-outline-secondary" href="{% url 'accounts:login' %}">Sign in</a>
+<a class="btn btn-sm btn-outline-secondary" href="{% url 'accounts:login' %}">{% trans "Sign in" %}</a>
 {% endblock %}
 {% block content %}
 <div class="row justify-content-center">
     <div class="col-12 col-lg-7">
         <div class="card shadow-sm">
             <div class="card-body p-4">
-                <h1 class="h4 mb-1">Register your institution</h1>
+                <h1 class="h4 mb-1">{% trans "Register your institution" %}</h1>
                 <p class="text-body-secondary">
-                    Any legitimate organization that bills and collects payments
+                    {% blocktrans trimmed %}Any legitimate organization that bills and collects payments
                     can use KUSANYA — schools, clinics, retailers, hotels,
-                    landlords, NGOs, and more.
+                    landlords, NGOs, and more.{% endblocktrans %}
                 </p>
                 {% if form.non_field_errors %}
                     <div class="alert alert-danger">{{ form.non_field_errors }}</div>
                 {% endif %}
                 <form method="post" novalidate>
                     {% csrf_token %}
-                    <h2 class="h6 text-uppercase text-body-secondary mt-4">Institution</h2>
+                    <h2 class="h6 text-uppercase text-body-secondary mt-4">{% trans "Institution" %}</h2>
                     {% for field in form %}
                         {% if field.name in "institution_name,sector,contact_email,contact_phone" %}
                         <div class="mb-3">
@@ -30,7 +31,7 @@
                         {% endif %}
                     {% endfor %}
 
-                    <h2 class="h6 text-uppercase text-body-secondary mt-4">Your admin account</h2>
+                    <h2 class="h6 text-uppercase text-body-secondary mt-4">{% trans "Your admin account" %}</h2>
                     {% for field in form %}
                         {% if field.name in "admin_first_name,admin_last_name,admin_email,admin_password" %}
                         <div class="mb-3">
@@ -41,7 +42,7 @@
                         {% endif %}
                     {% endfor %}
 
-                    <button type="submit" class="btn btn-primary w-100">Submit for approval</button>
+                    <button type="submit" class="btn btn-primary w-100">{% trans "Submit for approval" %}</button>
                 </form>
             </div>
         </div>
