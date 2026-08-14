@@ -1546,3 +1546,69 @@ logged in as that institution's brand-new admin account in the same
 session — no Django admin step anywhere in the path. `docs/DESIGN_SYSTEM.md`
 gained a short note under a new "Tenant onboarding" mention alongside
 the existing Command palette/CRUD sections.
+
+## ADR-042: Brand color replaced — "Harvest" (deep forest green + Bootstrap's stock semantic colors), not the default Tailwind indigo
+
+**Decision:** `--kz-brand-*` (`static/css/design-tokens.css`) changes
+from `#4f46e5`-family indigo (Tailwind's own default "indigo" ramp,
+unmodified) to a hand-tuned forest-green ramp anchored at
+`--kz-brand-600: #1f6e4a`, plus a dedicated `--kz-brand-950: #0c2417`
+for the sidebar.
+`--bs-primary`/`--bs-primary-rgb` and every Bootstrap component that
+reads them (buttons, links, focus rings, the progress bar) update
+automatically since they were already token-fed, not hardcoded — this
+is a token-value change, not a rewrite of any component. The sidebar
+background moves from a generic `--kz-gray-900` slate to
+`--kz-brand-950`, tying the one large dark surface in the app to the
+brand instead of a disconnected neutral; dark mode no longer overrides
+`--kz-sidebar-bg` separately, since it's already dark and brand-tinted
+in light mode too. No semantic colors (success/danger/warning/info)
+changed — Bootstrap's stock values already had good separation from
+the new primary and didn't need touching.
+
+**Reason:** The previous palette was never a deliberate choice — it
+was whatever the initial Bootstrap+Tailwind-token scaffolding shipped
+with, and it reads that way: identical to the default indigo/purple
+seen across a large fraction of AI-scaffolded and template-derived SaaS
+UIs. Flagged directly by the user ("the color is not convincing... it's
+going to be used national wise") — a fair objection for software
+meant to represent a national payments/collections system, where
+"looks like an unstyled template" undermines the trust the product
+depends on. Rather than pick a replacement unilaterally, three
+distinct, real directions were built as live component mockups (an
+Artifact showing the actual sidebar/topbar/stat-cards/buttons/table
+shape, not swatches) and presented for a decision: **Treasury** (deep
+petrol-blue, bank-register safe), **Harvest** (this one — forest green
+plus amber, chosen because "Kusanya" is Swahili for *to collect / to
+harvest*, so the color is about the product rather than borrowed from
+generic fintech blue), and **Authority** (burgundy, most formal/risky).
+The user picked Harvest.
+
+**Consequences:** Every value in the new ramp is contrast-checked the
+same way ADR-037 checked the sidebar fix (WCAG 2.1 relative-luminance
+formula, computed directly, not eyeballed) — `--kz-brand-600` measures
+6.2:1 as white-on-green button text (passes AA's 4.5:1 with room to
+spare), `--kz-brand-700` measures 6.96:1 against `--kz-brand-100` (the
+avatar chip's text-on-bg pairing), and the sidebar's existing
+`gray-300`/`gray-400` text tokens measure 11.05:1/6.4:1 against the new
+`--kz-brand-950` background — all comfortably clear AA against the
+darker surface too. Because every component already read tokens rather
+than hardcoding color (the design-tokens.css file's own stated
+invariant), the whole app repaints from roughly a dozen lines of token
+values — no template or component file needed color edits, with one
+exception: `templates/500.html` is a deliberately static,
+context-processor-free error page (must render standalone during an
+infrastructure outage) and hardcodes its own copy of the accent color,
+updated by hand to match. Paired with a small, separate button-polish
+pass in the same session: `.btn` gets Bootstrap's default weight-400
+bumped to 600 (reads as more confident/authoritative, matching the
+sidebar nav links which were already 500), and `.btn-primary`/`.btn-success`/`.btn-danger`
+get a 1px hover lift with a token-driven shadow, disabled under
+`prefers-reduced-motion`. Verified via `manage.py check`, the full
+251-test suite (all pass — a pure CSS/token change, as expected,
+touched no test-covered behavior), and a live fetch of the served
+`design-tokens.css` and an authenticated dashboard render against the
+running dev server, confirming the new values are actually what's
+shipped, not just what's on disk. Visual/browser confirmation (does it
+actually look good rendered) is the one check that genuinely needs a
+human looking at a screen, not `curl` — left to the user.

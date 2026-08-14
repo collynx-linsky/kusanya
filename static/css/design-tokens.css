@@ -10,17 +10,27 @@ parallel stylesheet. See docs/DESIGN_SYSTEM.md.
 */
 
 :root {
-  /* --- Brand --------------------------------------------------------- */
-  --kz-brand-50:  #eef2ff;
-  --kz-brand-100: #e0e7ff;
-  --kz-brand-200: #c7d2fe;
-  --kz-brand-300: #a5b4fc;
-  --kz-brand-400: #818cf8;
-  --kz-brand-500: #6366f1;
-  --kz-brand-600: #4f46e5;
-  --kz-brand-700: #4338ca;
-  --kz-brand-800: #3730a3;
-  --kz-brand-900: #312e81;
+  /* --- Brand: "Harvest" ------------------------------------------------
+     A deep forest green, not the generic Tailwind-indigo this replaced.
+     "Kusanya" is Swahili for "to collect / to gather in a harvest" --
+     this palette takes that literally instead of reaching for generic
+     fintech blue. See ARCHITECTURE_DECISIONS ADR-042 and the three-way
+     comparison it was picked from. Every step below is contrast-checked
+     against white/against its own 50/100 tints where it's used as text
+     (button labels, links, the sidebar) -- see ADR-042 for the numbers. */
+  --kz-brand-50:  #f0f9f3;
+  --kz-brand-100: #dbf0e2;
+  --kz-brand-200: #b3e0c4;
+  --kz-brand-300: #83cb9f;
+  --kz-brand-400: #52ac78;
+  --kz-brand-500: #328c59;
+  --kz-brand-600: #1f6e4a;
+  --kz-brand-700: #175939;
+  --kz-brand-800: #14472e;
+  --kz-brand-900: #123a26;
+  /* Sidebar only -- deep enough that sidebar text (gray-300) still
+     clears 11:1 and sidebar-text-muted (gray-400) clears 6.4:1. */
+  --kz-brand-950: #0c2417;
 
   /* --- Neutral (surfaces, borders, text) ------------------------------ */
   --kz-gray-0:   #ffffff;
@@ -47,15 +57,16 @@ parallel stylesheet. See docs/DESIGN_SYSTEM.md.
   --kz-text-subtle: var(--kz-gray-400);
   --kz-text-on-brand: #ffffff;
 
-  --kz-sidebar-bg: var(--kz-gray-900);
+  /* brand-950, not gray-900 -- ties the sidebar to the Harvest palette
+     (a deep forest-black-green) instead of a generic neutral slate.
+     ADR-037's original fix (gray-500 fails AA here, gray-400 passes)
+     still holds against this darker background: gray-300 measures
+     11.05:1, gray-400 measures 6.4:1 -- both clear AA with room to
+     spare. See ARCHITECTURE_DECISIONS ADR-042. */
+  --kz-sidebar-bg: var(--kz-brand-950);
   --kz-sidebar-text: var(--kz-gray-300);
-  /* gray-500 here measures 3.75:1 against gray-900 -- fails WCAG AA's
-     4.5:1 for small text (this token backs section labels, which are
-     bold but only 12px, too small to qualify for the relaxed
-     large-text 3:1 threshold). gray-400 measures 6.96:1. See
-     ARCHITECTURE_DECISIONS ADR-037. */
   --kz-sidebar-text-muted: var(--kz-gray-400);
-  --kz-sidebar-active-bg: rgba(99, 102, 241, 0.16);
+  --kz-sidebar-active-bg: rgba(31, 110, 74, 0.22);
   --kz-sidebar-active-text: #ffffff;
   --kz-sidebar-border: rgba(255, 255, 255, 0.08);
 
@@ -105,7 +116,7 @@ parallel stylesheet. See docs/DESIGN_SYSTEM.md.
      picks up the KUSANYA palette automatically instead of stock
      Bootstrap blue. ------------------------------------------------- */
   --bs-primary: var(--kz-brand-600);
-  --bs-primary-rgb: 79, 70, 229;
+  --bs-primary-rgb: 31, 110, 74;
   --bs-body-font-family: var(--kz-font-sans);
   --bs-body-font-size: var(--kz-text-base);
   --bs-border-radius: var(--kz-radius-md);
@@ -130,6 +141,9 @@ parallel stylesheet. See docs/DESIGN_SYSTEM.md.
   --kz-text-muted: var(--kz-gray-400);
   --kz-text-subtle: var(--kz-gray-500);
 
-  --kz-sidebar-bg: var(--kz-gray-950);
+  /* --kz-sidebar-bg is intentionally NOT overridden here -- it's
+     already a dark, brand-tinted surface (--kz-brand-950) in light
+     mode, so dark mode reuses the exact same value rather than
+     swapping to a second, disconnected dark neutral. */
   --kz-sidebar-border: rgba(255, 255, 255, 0.06);
 }

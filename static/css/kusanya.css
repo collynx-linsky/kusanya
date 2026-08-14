@@ -750,6 +750,56 @@ a.kz-stat-card:hover {
 }
 
 /* ============================================================
+   Buttons -- Bootstrap's own .btn is otherwise unmodified (still
+   reads --bs-primary/--bs-border-radius from design-tokens.css); these
+   two rules are the only KUSANYA-specific polish on top of it: a
+   slightly more confident weight than Bootstrap's default 400 (reads
+   as authoritative rather than a low-emphasis default), and a small
+   lift on hover so primary actions feel tactile rather than flat.
+   Respects prefers-reduced-motion via the transition already being
+   short (120ms) and transform-only, not disabled outright -- a 1px
+   lift is well under the threshold that matters for motion
+   sensitivity, unlike a slide/fade/scale animation would be.
+   ============================================================ */
+
+.btn {
+  font-weight: 600;
+}
+
+.btn-primary,
+.btn-success,
+.btn-danger {
+  transition: transform var(--kz-transition-fast), box-shadow var(--kz-transition-fast);
+}
+
+.btn-primary:hover,
+.btn-success:hover,
+.btn-danger:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--kz-shadow-md);
+}
+
+.btn-primary:active,
+.btn-success:active,
+.btn-danger:active {
+  transform: translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn-primary,
+  .btn-success,
+  .btn-danger {
+    transition: none;
+  }
+
+  .btn-primary:hover,
+  .btn-success:hover,
+  .btn-danger:hover {
+    transform: none;
+  }
+}
+
+/* ============================================================
    Misc
    ============================================================ */
 

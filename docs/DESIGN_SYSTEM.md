@@ -21,20 +21,36 @@ hex/px value in `kusanya.css` or inline styles. Two reasons:
 1. **Dark mode is a token swap, not a parallel stylesheet.** `[data-bs-theme="dark"]`
    redefines the same token names to different values; every component
    that reads `var(--kz-text)` etc. is automatically dark-mode-correct
-   with zero component-level changes, whenever a toggle exists (P3 item
-   26 — not built yet; the token structure is ready for it).
+   with zero component-level changes. The toggle itself is real and
+   shipped in P3 — see "Dark mode" below.
 2. **The tokens also feed Bootstrap's own `--bs-*` variables**
    (`--bs-primary`, `--bs-border-radius`, `--bs-body-font-family`, …) —
    so unmodified Bootstrap components (alerts, buttons, badges, form
    controls) automatically pick up the KUSANYA palette instead of stock
    Bootstrap blue, without needing Sass recompilation or a custom
-   Bootstrap build.
+   Bootstrap build. This is also what made the P3.9 rebrand (below)
+   a token-only change, not a template rewrite.
 
-Token categories: brand scale (`--kz-brand-50`…`900`), neutral gray
+Token categories: brand scale (`--kz-brand-50`…`950`), neutral gray
 scale, semantic surface/text/border tokens, sidebar-specific tokens,
 4px-based spacing scale, radius scale, two-tier shadow scale (enterprise
 apps lean on borders over drop shadows — shadows here are deliberately
 subtle), and a system-font type scale (no webfont download).
+
+**Brand palette — "Harvest"** (`--kz-brand-600: #1f6e4a`, a deep forest
+green, plus `--kz-brand-950: #0c2417` for the sidebar): picked over two
+other real, fully-mocked-up directions (a petrol-blue "Treasury" and a
+burgundy "Authority") to replace what shipped originally — an
+unmodified Tailwind indigo that never was a deliberate choice and read
+as an unstyled template rather than a national payments platform.
+"Kusanya" is Swahili for *to collect / to gather in a harvest* — the
+palette is meant to be about the product, not borrowed fintech blue.
+Every step is WCAG AA contrast-checked the same way as ADR-037's
+sidebar fix. Buttons also got a small polish pass in the same change:
+`.btn` moves from Bootstrap's default weight-400 to 600, and
+`.btn-primary`/`.btn-success`/`.btn-danger` get a 1px hover lift with a
+token-driven shadow (disabled under `prefers-reduced-motion`). See
+ARCHITECTURE_DECISIONS ADR-042.
 
 ## Application shell (`templates/base.html`, `partials/sidebar.html`, `partials/topbar.html`)
 
