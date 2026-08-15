@@ -1,0 +1,61 @@
+{% load i18n %}
+{% comment %}
+Shown on the tenant dashboard for a brand-new institution (no customers
+yet) — the real, actual 4-step collection workflow in plain language,
+each step linking straight to where it happens. Not shown once a
+tenant has customers, so it doesn't become permanent clutter for
+someone who already knows the flow. See ARCHITECTURE_DECISIONS ADR-043.
+{% endcomment %}
+<div class="kz-card mb-4">
+    <div class="kz-card-header">
+        <h2>{% trans "How collecting a payment works" %}</h2>
+    </div>
+    <div class="kz-card-body">
+        <p class="text-body-secondary">
+            {% blocktrans trimmed %}Four steps, start to finish. Once you've done this once, repeat
+            steps 1–3 are the only ones you do by hand — step 4 happens
+            on its own.{% endblocktrans %}
+        </p>
+        <div class="row g-3">
+            <div class="col-12 col-md-6 col-lg-3">
+                <div class="d-flex gap-2">
+                    <span class="kz-avatar flex-shrink-0" aria-hidden="true">1</span>
+                    <div>
+                        <div class="fw-semibold">{% trans "Add a customer" %}</div>
+                        <p class="text-body-secondary small mb-1">{% trans "Who you're billing — a parent, a tenant, a member." %}</p>
+                        <a href="{% url 'customers:create' %}" class="small">{% trans "Add a customer" %} <i class="bi bi-arrow-right"></i></a>
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 col-md-6 col-lg-3">
+                <div class="d-flex gap-2">
+                    <span class="kz-avatar flex-shrink-0" aria-hidden="true">2</span>
+                    <div>
+                        <div class="fw-semibold">{% trans "Give them an account" %}</div>
+                        <p class="text-body-secondary small mb-1">{% trans "What you're billing for — a term's tuition, a month's rent." %}</p>
+                        <span class="text-body-secondary small">{% trans "From the customer's page" %}</span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 col-md-6 col-lg-3">
+                <div class="d-flex gap-2">
+                    <span class="kz-avatar flex-shrink-0" aria-hidden="true">3</span>
+                    <div>
+                        <div class="fw-semibold">{% trans "Create a bill" %}</div>
+                        <p class="text-body-secondary small mb-1">{% trans "This automatically issues a control number — give that number to your customer." %}</p>
+                        <a href="{% url 'billing:create' %}" class="small">{% trans "Create a bill" %} <i class="bi bi-arrow-right"></i></a>
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 col-md-6 col-lg-3">
+                <div class="d-flex gap-2">
+                    <span class="kz-avatar flex-shrink-0" aria-hidden="true">4</span>
+                    <div>
+                        <div class="fw-semibold">{% trans "They pay — automatically" %}</div>
+                        <p class="text-body-secondary small mb-1">{% trans "The payment is matched to the bill and a receipt is issued with nothing more for you to do." %}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

@@ -6,9 +6,9 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
 from apps.audit.services import record_audit_event
-from apps.tenants.forms import TenantOnboardingForm
+from apps.tenants.forms import TeamMemberForm, TenantOnboardingForm
 from apps.tenants.models import Tenant, TenantMembership, TenantRole
-from apps.tenants.permissions import require_platform_role
+from apps.tenants.permissions import require_platform_role, require_tenant_role
 from apps.users.models import PlatformRole
 
 User = get_user_model()
@@ -104,6 +104,92 @@ def dashboard(request):
         .order_by("-initiated_at")[:5],
     }
     return render(request, "dashboard/tenant_dashboard.html", context)
+
+
+@login_required
+@require_tenant_role(TenantRole.ADMIN)
+def team_members(request):
+    """The "Team members" stat card on the dashboard has always linked
+    here in spirit -- TenantMembership.invited_by was built for this
+    from the start (see the model's docstring), it just never had a UI
+    until now. Tenant-admin-only: adding people who can act on your
+    institution's money is exactly the kind of action that shouldn't be
+    available to, say, a Viewer."""
+    tenant = request.tenant
+    memberships = (
+        TenantMembership.objects.filter(tenant=tenant)
+        .select_related("user", "invited_by")
+        .order_by("-is_active", "user__email")
+    )
+    return render(request, "tenants/team_list.html", {"memberships": memberships})
+
+
+@login_required
+@require_tenant_role(TenantRole.ADMIN)
+def team_member_create(request):
+    tenant = request.tenant
+    if request.method == "POST":
+        form = TeamMemberForm(request.POST)
+        if form.is_valid():
+            data = form.cleaned_data
+            with transaction.atomic():
+                user = User.objects.create_user(
+                    email=data["email"],
+                    password=data["password"],
+                    first_name=data["first_name"],
+                    last_name=data["last_name"],
+                )
+                membership = TenantMembership.objects.create(
+                    tenant=tenant, user=user, role=data["role"], invited_by=request.user,
+                )
+                record_audit_event(
+                    actor=request.user,
+                    tenant=tenant,
+                    action="team_member.added",
+                    target=membership,
+                    metadata={"role": data["role"], "member_email": user.email},
+                )
+            messages.success(
+                request,
+                f"{user.email} added as {membership.get_role_display()}. Share the "
+                f"sign-in email and password you set with them directly.",
+            )
+            return redirect("tenants:team")
+    else:
+        form = TeamMemberForm()
+
+    return render(request, "tenants/team_member_form.html", {"form": form})
+
+
+@login_required
+@require_tenant_role(TenantRole.ADMIN)
+def team_member_deactivate(request, pk):
+    membership = get_object_or_404(TenantMembership, pk=pk, tenant=request.tenant)
+    if request.method == "POST":
+        if membership.user_id == request.user.id:
+            messages.error(request, "You can't deactivate your own membership.")
+            return redirect("tenants:team")
+        membership.is_active = False
+        membership.save(update_fields=["is_active", "updated_at"])
+        record_audit_event(
+            actor=request.user, tenant=request.tenant, action="team_member.deactivated", target=membership,
+        )
+        messages.success(request, f"{membership.user.email} removed from the team.")
+    return redirect("tenants:team")
+
+
+@login_required
+@require_tenant_role(TenantRole.ADMIN)
+def team_member_activate(request, pk):
+    membership = get_object_or_404(TenantMembership, pk=pk, tenant=request.tenant)
+    if request.method == "POST":
+        membership.is_active = True
+        membership.save(update_fields=["is_active", "updated_at"])
+        record_audit_event(
+            actor=request.user, tenant=request.tenant, action="team_member.reactivated", target=membership,
+        )
+        messages.success(request, f"{membership.user.email} reactivated.")
+    return redirect("tenants:team")
 
 
 @login_required

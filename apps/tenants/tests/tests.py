@@ -5,11 +5,12 @@ the moment either is violated.
 """
 
 import pytest
+from django.contrib.auth import get_user_model
 from django.core.exceptions import PermissionDenied
 from django.urls import reverse
 
 from apps.tenants.middleware import TenantResolutionMiddleware
-from apps.tenants.models import Tenant, TenantRole
+from apps.tenants.models import Tenant, TenantMembership, TenantRole
 from apps.tenants.permissions import (
     get_tenant_role,
     has_platform_role,
@@ -17,6 +18,8 @@ from apps.tenants.permissions import (
     require_tenant_role,
 )
 from apps.users.models import PlatformRole
+
+User = get_user_model()
 
 
 @pytest.mark.django_db
@@ -278,3 +281,122 @@ class TestTenantOnboarding:
         )
         assert response.status_code == 200  # re-renders the form with the error
         assert "already registered" in response.content.decode()
+
+
+@pytest.mark.django_db
+class TestTeamManagement:
+    """apps.tenants.views.team_members/team_member_create -- the
+    "add a colleague" gap TenantMembership.invited_by was built for
+    but never had a UI, per ARCHITECTURE_DECISIONS ADR-043."""
+
+    def _login_as_admin(self, client, make_user, make_tenant, make_membership):
+        tenant = make_tenant()
+        admin = make_user(email="team-admin@example.com")
+        make_membership(admin, tenant, role=TenantRole.ADMIN)
+        client.force_login(admin)
+        session = client.session
+        session["active_tenant_id"] = str(tenant.id)
+        session.save()
+        return tenant, admin
+
+    def test_viewer_cannot_add_a_teammate(self, client, make_user, make_tenant, make_membership):
+        tenant = make_tenant()
+        viewer = make_user(email="viewer@example.com")
+        make_membership(viewer, tenant, role=TenantRole.VIEWER)
+        client.force_login(viewer)
+        session = client.session
+        session["active_tenant_id"] = str(tenant.id)
+        session.save()
+
+        response = client.post(
+            reverse("tenants:team-member-create"),
+            {
+                "first_name": "Should",
+                "last_name": "Fail",
+                "email": "shouldfail@example.com",
+                "password": "SuperSecurePass123!",
+                "role": TenantRole.VIEWER,
+            },
+        )
+        assert response.status_code == 403
+        assert not User.objects.filter(email="shouldfail@example.com").exists()
+
+    def test_admin_can_add_a_teammate(self, client, make_user, make_tenant, make_membership):
+        tenant, admin = self._login_as_admin(client, make_user, make_tenant, make_membership)
+
+        response = client.post(
+            reverse("tenants:team-member-create"),
+            {
+                "first_name": "Peter",
+                "last_name": "Lyimo",
+                "email": "peter@example.com",
+                "password": "SuperSecurePass123!",
+                "role": TenantRole.BILLING_OFFICER,
+            },
+        )
+        assert response.status_code == 302
+
+        new_user = User.objects.get(email="peter@example.com")
+        membership = TenantMembership.objects.get(user=new_user, tenant=tenant)
+        assert membership.role == TenantRole.BILLING_OFFICER
+        assert membership.invited_by == admin
+        assert membership.is_active is True
+
+    def test_duplicate_email_is_rejected(self, client, make_user, make_tenant, make_membership):
+        self._login_as_admin(client, make_user, make_tenant, make_membership)
+        make_user(email="already-exists@example.com")
+
+        response = client.post(
+            reverse("tenants:team-member-create"),
+            {
+                "first_name": "Dup",
+                "last_name": "Licate",
+                "email": "already-exists@example.com",
+                "password": "SuperSecurePass123!",
+                "role": TenantRole.VIEWER,
+            },
+        )
+        assert response.status_code == 200
+        assert "already exists" in response.content.decode()
+
+    def test_admin_can_deactivate_and_reactivate_a_teammate(
+        self, client, make_user, make_tenant, make_membership
+    ):
+        tenant, admin = self._login_as_admin(client, make_user, make_tenant, make_membership)
+        teammate = make_user(email="teammate@example.com")
+        membership = make_membership(teammate, tenant, role=TenantRole.VIEWER)
+
+        response = client.post(reverse("tenants:team-member-deactivate", args=[membership.pk]))
+        assert response.status_code == 302
+        membership.refresh_from_db()
+        assert membership.is_active is False
+
+        response = client.post(reverse("tenants:team-member-activate", args=[membership.pk]))
+        assert response.status_code == 302
+        membership.refresh_from_db()
+        assert membership.is_active is True
+
+    def test_admin_cannot_deactivate_their_own_membership(
+        self, client, make_user, make_tenant, make_membership
+    ):
+        tenant, admin = self._login_as_admin(client, make_user, make_tenant, make_membership)
+        own_membership = TenantMembership.objects.get(user=admin, tenant=tenant)
+
+        response = client.post(reverse("tenants:team-member-deactivate", args=[own_membership.pk]))
+        assert response.status_code == 302
+        own_membership.refresh_from_db()
+        assert own_membership.is_active is True
+
+    def test_team_list_shows_only_this_tenants_members(
+        self, client, make_user, make_tenant, make_membership
+    ):
+        tenant, admin = self._login_as_admin(client, make_user, make_tenant, make_membership)
+        other_tenant = make_tenant(name="A Different Institution")
+        other_user = make_user(email="other-tenant-user@example.com")
+        make_membership(other_user, other_tenant, role=TenantRole.VIEWER)
+
+        response = client.get(reverse("tenants:team"))
+        assert response.status_code == 200
+        body = response.content.decode()
+        assert admin.email in body
+        assert other_user.email not in body

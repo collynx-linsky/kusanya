@@ -1653,3 +1653,85 @@ running dev server, confirming the new values are actually what's
 shipped, not just what's on disk. Visual/browser confirmation (does it
 actually look good rendered) is the one check that genuinely needs a
 human looking at a screen, not `curl` — left to the user.
+
+## ADR-043: Two real in-app user-management paths — "Add teammate" (tenant admin) and "Create user" (platform staff) — plus a plain-language collections walkthrough
+
+**Decision:** Three additions, all closing the same underlying gap:
+Django admin was the *only* way to get a second person into an
+institution's account, or to create a KUSANYA platform-staff account,
+anywhere in the app.
+
+1. **Team management** (`apps.tenants.views.team_members`/`team_member_create`/
+   `team_member_deactivate`/`team_member_activate`, gated
+   `@require_tenant_role(TenantRole.ADMIN)`): a tenant admin adds a
+   colleague — real `User` + `TenantMembership` created in one step,
+   `invited_by` set to the admin who added them (a field the model
+   already had for exactly this, just never had a UI). Deactivate is a
+   membership toggle, not a user delete — mirrors every other
+   "remove from active use, never destroy" pattern in this codebase —
+   and a membership can't deactivate itself, so an admin can't
+   accidentally lock themselves out. The dashboard's existing "Team
+   members" stat card (`member_count`, previously just a bare number
+   with no link) now links here.
+2. **Platform user creation** (`apps.users.views.platform_users`/`platform_user_create`,
+   new `apps.users` app URLs/views/forms — none existed before — gated
+   `@require_platform_role(SUPER_ADMIN, OPERATIONS_ADMIN)`, same tier
+   as ADR-041's tenant creation): one form, `PlatformUserCreateForm`,
+   grants *either* membership in one existing institution *or*
+   platform-staff access, never both in a single submission — kept as
+   two distinct grants since `TenantMembership` and `PlatformMembership`
+   are two separate models and pretending otherwise would misrepresent
+   what's actually being granted. Granting platform access also sets
+   `is_staff=True`, not just a `PlatformMembership` row: the sidebar's
+   entire "Platform admin" section is gated on `user.is_staff`, so a
+   platform role without it would pass every `require_platform_role`
+   check on the backend while leaving the person with no way to reach
+   any of it through the UI they were just given access to.
+3. **"How collecting a payment works"** (`components/getting_started.html`,
+   shown on the tenant dashboard only while `customer_count == 0`):
+   the real 4-step flow in plain language — add a customer, give them
+   an account, create a bill (which issues a control number
+   automatically), they pay and everything after that happens on its
+   own — each step linking straight to where it happens. Shown only
+   for a genuinely new tenant so it doesn't become permanent clutter
+   for someone who already knows the flow.
+
+**Reason:** Raised directly by the user: the platform admin should
+have "every access... even to be able to create new user," and the
+system needed "sections well explained" because its actual structure
+(customer → account → bill → control number → payment → receipt) is
+more steps than it looks from a single "Bills" or "Payments" page in
+isolation. Both are real, concrete gaps, not vague usability
+complaints — `TenantMembership.invited_by` existing on the model with
+no view ever setting it besides tenant-onboarding's single bundled
+admin user is direct evidence the "add a colleague" case was designed
+for but never finished; `apps/users` having no `views.py`/`urls.py` at
+all confirms platform-side user creation genuinely only ever existed
+in Django admin.
+
+**Consequences:** 10 new tests (`apps/tenants/tests/tests.py::TestTeamManagement`,
+`apps/users/tests/tests.py::TestPlatformUserCreate`) covering the
+permission gates (a Viewer can't add a teammate; a non-staff user gets
+403 on platform user creation), the happy paths (membership/role
+correctly created, `invited_by` set), the self-deactivation guard, and
+tenant isolation on the team list (another tenant's members never
+appear). Full suite: 261/261 passing. Live-verified against the real
+dev server as `admin@kusanya.local`: created a real platform-staff
+user and confirmed they could sign in immediately; created a real
+tenant member through the platform "Create user" flow and confirmed
+they appeared on that institution's own Team page; added a teammate
+directly from Team, deactivated them, saw the "Removed" state, all
+against a real seeded tenant (cleaned up afterward, same as every
+other smoke test this session). 57 Kiswahili translations added
+across the five new/changed templates, extending the same hand-authored
+`.po` + `pybabel` pipeline from ADR-038 — verified via direct
+`gettext()` calls, not just that the `.mo` compiled.
+
+Two scope boundaries, stated honestly rather than silently: neither
+new-user flow sends an email or generates an invite link — the admin
+sets a password directly and shares it with the person themselves,
+same as ADR-041's tenant creation. And the platform "Create user" form
+can grant membership in any *existing active* institution but still
+can't create a *new* institution in the same step — that's
+`tenants:platform-create-tenant` (ADR-041), a deliberately separate
+flow, not merged into this one.

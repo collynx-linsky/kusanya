@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% load i18n crispy_forms_tags %}
+{% block title %}{% trans "Add teammate" %}{% endblock %}
+{% block breadcrumb %}
+<a href="{% url 'tenants:team' %}">{% trans "Team" %}</a>
+<i class="bi bi-chevron-right small"></i>
+<span class="text-body">{% trans "Add teammate" %}</span>
+{% endblock %}
+{% block content %}
+<div class="kz-page-header">
+    <h1 class="kz-page-title">{% trans "Add teammate" %}</h1>
+</div>
+
+<div class="kz-form-card">
+    <p class="text-body-secondary small">
+        {% blocktrans trimmed %}Creates a real sign-in account for them, already able to use this
+        institution's portal with the role you pick below. Share the
+        email and password you set here with them directly — KUSANYA
+        doesn't email credentials.{% endblocktrans %}
+    </p>
+    <form method="post">
+        {% csrf_token %}
+        {{ form|crispy }}
+        <div class="kz-form-actions">
+            <button type="submit" class="btn btn-primary">{% trans "Add teammate" %}</button>
+            <a href="{% url 'tenants:team' %}" class="btn btn-outline-secondary">{% trans "Cancel" %}</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

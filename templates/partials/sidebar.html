@@ -18,6 +18,13 @@
 
             {% if current_tenant %}
             <div class="kz-nav-section">
+                <a class="kz-nav-link {% is_active_view 'tenants:team' %}" href="{% url 'tenants:team' %}" {% aria_current_ns 'tenants:team' %}>
+                    <span class="kz-nav-icon"><i class="bi bi-person-vcard"></i></span>
+                    {% trans 'Team' %}
+                </a>
+            </div>
+
+            <div class="kz-nav-section">
                 <div class="kz-nav-section-label">{% trans 'Collections' %}</div>
                 <a class="kz-nav-link {% is_active_ns 'customers' %}" href="{% url 'customers:list' %}" {% aria_current_ns 'customers' %}>
                     <span class="kz-nav-icon"><i class="bi bi-people"></i></span>
@@ -98,6 +105,10 @@
             {% if user.is_staff %}
             <div class="kz-nav-section">
                 <div class="kz-nav-section-label">{% trans 'Platform admin' %}</div>
+                <a class="kz-nav-link {% is_active_ns 'users' %}" href="{% url 'users:platform-list' %}" {% aria_current_ns 'users' %}>
+                    <span class="kz-nav-icon"><i class="bi bi-people"></i></span>
+                    {% trans 'Users' %}
+                </a>
                 <a class="kz-nav-link" href="{% url 'tenants:pending-tenants' %}">
                     <span class="kz-nav-icon"><i class="bi bi-building-add"></i></span>
                     {% trans 'Pending institutions' %}

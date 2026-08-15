@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% load i18n crispy_forms_tags %}
+{% block title %}{% trans "Create user" %}{% endblock %}
+{% block breadcrumb %}
+<a href="{% url 'users:platform-list' %}">{% trans "Users" %}</a>
+<i class="bi bi-chevron-right small"></i>
+<span class="text-body">{% trans "Create user" %}</span>
+{% endblock %}
+{% block content %}
+<div class="kz-page-header">
+    <h1 class="kz-page-title">{% trans "Create user" %}</h1>
+</div>
+
+<div class="kz-form-card">
+    <p class="text-body-secondary small">
+        {% blocktrans trimmed %}Creates a real sign-in account, already able to use KUSANYA with the
+        access you grant below. Share the email and password you set
+        here with them directly — KUSANYA doesn't email credentials.{% endblocktrans %}
+    </p>
+    <form method="post" id="kz-platform-user-form">
+        {% csrf_token %}
+        {{ form|crispy }}
+        <div class="kz-form-actions">
+            <button type="submit" class="btn btn-primary">{% trans "Create user" %}</button>
+            <a href="{% url 'users:platform-list' %}" class="btn btn-outline-secondary">{% trans "Cancel" %}</a>
+        </div>
+    </form>
+</div>
+
+{% comment %}
+Shows only the field group that matches the selected access type --
+crispy renders every field from PlatformUserCreateForm unconditionally
+(institution+role, and platform role, are both always in the form so
+either can be validated server-side regardless of which the user
+picks), this just hides the one that doesn't apply. Server-side
+validation (PlatformUserCreateForm.clean) is the real enforcement;
+this is presentation only.
+{% endcomment %}
+<script>
+    (function () {
+        const form = document.getElementById("kz-platform-user-form");
+        if (!form) return;
+        const radios = form.querySelectorAll('input[name="access_type"]');
+        const tenantFields = ["id_tenant", "id_tenant_role"];
+        const platformFields = ["id_platform_role"];
+
+        function fieldWrap(id) {
+            const el = document.getElementById(id);
+            return el ? el.closest(".mb-3, .form-group") : null;
+        }
+
+        function sync() {
+            const checked = form.querySelector('input[name="access_type"]:checked');
+            const isTenant = !checked || checked.value === "tenant_member";
+            tenantFields.forEach(function (id) {
+                const wrap = fieldWrap(id);
+                if (wrap) wrap.classList.toggle("d-none", !isTenant);
+            });
+            platformFields.forEach(function (id) {
+                const wrap = fieldWrap(id);
+                if (wrap) wrap.classList.toggle("d-none", isTenant);
+            });
+        }
+
+        radios.forEach(function (r) { r.addEventListener("change", sync); });
+        sync();
+    })();
+</script>
+{% endblock %}

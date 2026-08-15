@@ -11,9 +11,12 @@
 # partials/sidebar.html, partials/topbar.html,
 # partials/language_switcher.html, every page that extends
 # base_auth.html -- accounts/login.html, accounts/mfa_verify.html,
-# tenants/onboarding.html -- and tenants/platform_create.html +
-# tenants/pending_list.html's new-institution button) -- not guessed
-# or invented. Form field
+# tenants/onboarding.html -- tenants/platform_create.html +
+# tenants/pending_list.html's new-institution button, and the team/user
+# management pages added in ADR-043: tenants/team_list.html,
+# tenants/team_member_form.html, users/platform_list.html,
+# users/platform_create.html, components/getting_started.html) -- not
+# guessed or invented. Form field
 # labels (e.g. the onboarding form's per-field labels, which come from
 # apps.tenants.forms rather than a template) are a known, separate gap
 # -- not covered here. Compiled to the real .mo Django reads via
@@ -39,6 +42,21 @@ msgstr "Vitambulisho vya API"
 
 msgid "API documentation"
 msgstr "Nyaraka za API"
+
+msgid "Actions"
+msgstr "Vitendo"
+
+msgid "Active"
+msgstr "Hai"
+
+msgid "Add a customer"
+msgstr "Ongeza mteja"
+
+msgid "Add teammate"
+msgstr "Ongeza mwanatimu"
+
+msgid "Added by"
+msgstr "Aliyeongeza"
 
 msgid "Alerts"
 msgstr "Tahadhari"
@@ -67,8 +85,20 @@ msgstr "Ukusanyaji"
 msgid "Control numbers"
 msgstr "Namba za udhibiti"
 
+msgid "Create a bill"
+msgstr "Unda bili"
+
 msgid "Create institution"
 msgstr "Unda taasisi"
+
+msgid "Create user"
+msgstr "Unda mtumiaji"
+
+msgid "Creates a real sign-in account for them, already able to use this institution's portal with the role you pick below. Share the email and password you set here with them directly — KUSANYA doesn't email credentials."
+msgstr "Inaunda akaunti halisi ya kuingia kwa ajili yao, tayari wanaweza kutumia lango la taasisi hii kwa wajibu unaochagua hapa chini. Wape barua pepe na nenosiri ulilotumia hapa moja kwa moja; KUSANYA haitumi vitambulisho kwa barua pepe."
+
+msgid "Creates a real sign-in account, already able to use KUSANYA with the access you grant below. Share the email and password you set here with them directly — KUSANYA doesn't email credentials."
+msgstr "Inaunda akaunti halisi ya kuingia, tayari inaweza kutumia KUSANYA kwa ruhusa unayotoa hapa chini. Wape barua pepe na nenosiri ulilotumia hapa moja kwa moja; KUSANYA haitumi vitambulisho kwa barua pepe."
 
 msgid "Creates the institution and its first admin account directly, already active -- no separate approval step, since you're the approver. Give the sign-in email and password you set to that admin yourself; KUSANYA doesn't email credentials."
 msgstr "Inaunda taasisi na akaunti yake ya kwanza ya msimamizi moja kwa moja, tayari hai -- hakuna hatua tofauti ya idhini, kwa kuwa wewe ndiye mwenye kuidhinisha. Mpe msimamizi huyo barua pepe na nenosiri la kuingia ulilotumia mwenyewe; KUSANYA haitumi vitambulisho kwa barua pepe."
@@ -85,6 +115,9 @@ msgstr "Dashibodi"
 msgid "Developer"
 msgstr "Msanidi programu"
 
+msgid "Disabled"
+msgstr "Imezimwa"
+
 msgid "Django admin"
 msgstr "Msimamizi wa Django"
 
@@ -94,13 +127,34 @@ msgstr "Barua pepe"
 msgid "Enter your 6-digit code"
 msgstr "Weka msimbo wako wa tarakimu 6"
 
+msgid "Everyone who can sign in to this institution's account, and what they're allowed to do here."
+msgstr "Kila mtu anayeweza kuingia kwenye akaunti ya taasisi hii, na wanachoruhusiwa kufanya hapa."
+
+msgid "Every account that can sign in to KUSANYA, across every institution and the platform team."
+msgstr "Kila akaunti inayoweza kuingia KUSANYA, katika kila taasisi na timu ya jukwaa."
+
 msgid "Finance"
 msgstr "Fedha"
+
+msgid "Four steps, start to finish. Once you've done this once, repeat steps 1–3 are the only ones you do by hand — step 4 happens on its own."
+msgstr "Hatua nne, mwanzo hadi mwisho. Ukishafanya hivi mara moja, hatua za kurudia 1–3 ndizo unazofanya mwenyewe — hatua ya 4 hutokea yenyewe."
+
+msgid "From the customer's page"
+msgstr "Kutoka ukurasa wa mteja"
 
 msgid "From your authenticator app, or one of your backup codes."
 msgstr "Kutoka kwenye programu yako ya uthibitishaji, au moja ya misimbo yako ya akiba."
 
+msgid "Give them an account"
+msgstr "Wape akaunti"
+
+msgid "How collecting a payment works"
+msgstr "Jinsi ukusanyaji wa malipo unavyofanya kazi"
+
 msgid "Institution"
+msgstr "Taasisi"
+
+msgid "Institutions"
 msgstr "Taasisi"
 
 msgid "Its admin account"
@@ -117,6 +171,9 @@ msgstr "Mwanga"
 
 msgid "Match system"
 msgstr "Fuata mfumo"
+
+msgid "Name"
+msgstr "Jina"
 
 msgid "New institution"
 msgstr "Taasisi mpya"
@@ -148,6 +205,9 @@ msgstr "Msimamizi wa jukwaa"
 msgid "Platform revenue"
 msgstr "Mapato ya jukwaa"
 
+msgid "Platform roles"
+msgstr "Majukumu ya jukwaa"
+
 msgid "Primary"
 msgstr "Kuu"
 
@@ -166,11 +226,26 @@ msgstr "Sajili taasisi"
 msgid "Register your institution"
 msgstr "Sajili taasisi yako"
 
+msgid "Remove"
+msgstr "Ondoa"
+
+msgid "Removed"
+msgstr "Imeondolewa"
+
+msgid "removed"
+msgstr "imeondolewa"
+
 msgid "Reports"
 msgstr "Ripoti"
 
+msgid "Restore"
+msgstr "Rejesha"
+
 msgid "Revenue"
 msgstr "Mapato"
+
+msgid "Role"
+msgstr "Jukumu"
 
 msgid "Search"
 msgstr "Tafuta"
@@ -196,14 +271,35 @@ msgstr "Toka"
 msgid "Skip to main content"
 msgstr "Rukia yaliyomo makuu"
 
+msgid "Staff"
+msgstr "Wafanyakazi"
+
+msgid "Status"
+msgstr "Hali"
+
 msgid "Submit for approval"
 msgstr "Wasilisha kwa idhini"
+
+msgid "Team"
+msgstr "Timu"
+
+msgid "The payment is matched to the bill and a receipt is issued with nothing more for you to do."
+msgstr "Malipo yanalinganishwa na bili na risiti inatolewa bila kitu kingine chochote unachohitaji kufanya."
 
 msgid "Theme"
 msgstr "Mandhari"
 
+msgid "They pay — automatically"
+msgstr "Wanalipa — kiotomatiki"
+
+msgid "This automatically issues a control number — give that number to your customer."
+msgstr "Hii inatoa namba ya udhibiti kiotomatiki — mpe mteja wako namba hiyo."
+
 msgid "Toggle navigation"
 msgstr "Fungua menyu ya urambazaji"
+
+msgid "Users"
+msgstr "Watumiaji"
 
 msgid "Verify"
 msgstr "Thibitisha"
@@ -213,6 +309,15 @@ msgstr "Thibitisha utambulisho wako"
 
 msgid "Webhooks"
 msgstr "Webhooks"
+
+msgid "What you're billing for — a term's tuition, a month's rent."
+msgstr "Unachotoa bili kwa ajili yake — ada ya muhula, kodi ya mwezi."
+
+msgid "Who you're billing — a parent, a tenant, a member."
+msgstr "Unayemtoza bili — mzazi, mpangaji, mwanachama."
+
+msgid "You"
+msgstr "Wewe"
 
 msgid "Your admin account"
 msgstr "Akaunti yako ya msimamizi"

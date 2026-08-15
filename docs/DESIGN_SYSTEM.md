@@ -232,6 +232,15 @@ list). The platform (staff-only) dashboard got the same stat-card
 treatment. Both had a stale "not yet implemented" notice corrected
 while already being edited — see ADR-034.
 
+A brand-new tenant (`customer_count == 0`) additionally sees
+`components/getting_started.html` — the real 4-step collection
+workflow in plain language (add a customer → give them an account →
+create a bill, which issues a control number automatically → they pay
+and everything after that happens on its own), each step linking
+straight to where it happens. Gone once the tenant has any customers,
+so it doesn't linger as clutter for someone who already knows the
+flow. See ARCHITECTURE_DECISIONS ADR-043.
+
 ## Filtering
 
 A status filter (`<select>`) sits alongside search in the same toolbar
@@ -349,6 +358,28 @@ without going through the public form was Django admin — which has no
 domain validation (no duplicate-name check, no atomic
 tenant+user+membership creation) — so Journey B closes a real gap, not
 just adds a shortcut. See ARCHITECTURE_DECISIONS ADR-041.
+
+## Team & user management
+
+Two more in-app paths that used to only exist in Django admin, both
+closing the same gap as Journey B above. **Team** (`/team/`, in the
+sidebar for anyone with an active institution, "Add teammate"
+tenant-admin-only): a tenant admin adds a colleague — a real `User` +
+`TenantMembership` in one step, with `TenantMembership.invited_by` set
+(a field the model already had, just never had a UI setting it besides
+tenant onboarding's single bundled admin user). Deactivate is a
+membership toggle, never a user delete, and a membership can't
+deactivate itself. The dashboard's "Team members" stat card links here
+now, instead of just showing a bare count. **Users** (`/users/platform/`,
+platform-staff-only, under "Platform admin" in the sidebar): every
+account on the platform in one place, with a "Create user" action that
+grants *either* membership in an existing institution *or*
+platform-staff access (setting `is_staff=True` too, since the sidebar's
+whole "Platform admin" section is gated on it) — never both in one
+submission, since those are two separate models being granted, not one
+interchangeable thing. Neither flow emails anything or generates an
+invite link — the admin sets a password and shares it directly, same
+as Journey B. See ARCHITECTURE_DECISIONS ADR-043.
 
 ## Command palette
 
